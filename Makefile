@@ -27,7 +27,7 @@ include/kern/autoconf.h: .config
 	${RM} -f $@
 	${top}/tools/kconfig/conf-header.sh .config > $@
 
-include/hal/asm-offset.h: hal
+include/hal/asm-offset.h: hal include/kern/autoconf.h
 	${MAKE} -C hal/hal gen-asm-offset
 
 ${targets}:include/kern/autoconf.h hal include/hal/asm-offset.h subsystem
