@@ -1,0 +1,85 @@
+set architecture i386:x86-64:intel
+
+set $pt_index_shift=12
+set $pd_index_shift=21
+set $pdpt_index_shift=30
+set $pml4_index_shift=39
+set $pg_idx_mask=0x1ff
+set $stk_siz=0x2000
+set $ti_siz=32
+
+define set_remote
+target remote localhost:1234
+end
+
+define load_symbol
+symbol-file kernel-dbg.elf
+end
+
+define six
+si
+x /i $rip
+end
+
+define _show_kstack
+x /512g  (uintptr_t *)( ( (unsigned long long)$sp ) & ~((unsigned long long)$stk_siz - 1) )
+end
+
+define _show_ti
+set $cur_stk=(void *)( ( (unsigned long long)$sp ) & ~((unsigned long long)$stk_siz - 1) )
+set $cur_ti=(thread_info *)( ( (uintptr_t)$cur_stk ) + $stk_siz - ( (uintptr_t)($ti_siz)) )
+p (thread_info *)$cur_ti
+p /x *(thread_info *)$cur_ti
+
+end
+
+define _show_current
+set $cur_stk=(void *)( ( (unsigned long long)$sp ) & ~((unsigned long long)$stk_siz - 1) )
+set $cur_ti=(thread_info *)( ( (uintptr_t)$cur_stk ) + $stk_siz - ( (uintptr_t)($ti_siz)) )
+set $cur_thr= (thread *)( ( (thread_info *)$cur_ti)->thr )
+print $cur_thr
+p *(thread *)$cur_thr
+end
+
+define __set_fault_vecs
+b vector0
+b vector1
+b vector2
+b vector3
+b vector4
+b vector5
+b vector6
+b vector7
+b vector8
+b vector9
+b vector10
+b vector11
+b vector12
+b vector13
+b vector14
+b vector15
+b vector16
+b vector17
+b vector18
+b vector19
+b vector20
+b vector21
+b vector22
+b vector23
+b vector24
+b vector25
+b vector26
+b vector27
+b vector28
+b vector29
+b vector30
+b vector31
+end
+
+
+define _setup
+load_symbol
+set_remote
+b x86_64_prepare
+#__set_fault_vecs
+end

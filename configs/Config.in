@@ -1,0 +1,18 @@
+#
+# For a description of the syntax of this configuration file,
+# see extra/config/Kconfig-language.txt
+#
+
+mainmenu "Kernel Configuration"
+
+config CONFIG_OPT_FLAGS
+       prompt "Generic optimize flags"
+       string 
+       default '-O0 -ggdb3'
+
+config CONFIG_GENERIC_CFLAGS
+       prompt "Generic cflags"
+       string 
+       default '-fno-pic -static -fno-builtin -fno-strict-aliasing -fno-common -nostdlib -fno-stack-protector -Wall -Wextra -Werror'
+
+source "hal/hal/Config.in"

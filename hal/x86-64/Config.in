@@ -1,0 +1,40 @@
+config CONFIG_HAL_MAX_MB_MODULES
+       prompt "Max multiboot modules"
+       int
+       default 32
+
+config CONFIG_HAL_MAX_KPARAM_LEN
+       prompt "Max kernel/multiboot parameter"
+       int
+       default 128
+
+config CONFIG_HAL_CFLAGS
+       prompt "CFLAGS for Hardware Abstraction Layer"
+       string
+       default "-ffreestanding -m64 -mcmodel=large -mno-red-zone -mno-aes -mno-avx -mno-mmx -mno-sse -msoft-float -fno-asynchronous-unwind-tables -fno-omit-frame-pointer -fno-optimize-sibling-calls" 
+
+config CONFIG_HAL_USER_CFLAGS
+       prompt "CFLAGS for User Programs"
+       string
+       default "-ffreestanding -m64 -mcmodel=large -mno-red-zone -fno-asynchronous-unwind-tables -fno-omit-frame-pointer -fno-optimize-sibling-calls" 
+
+config CONFIG_HAL_LDFLAGS
+       string
+       default "-z max-page-size=0x1000 --build-id=none"
+
+config CONFIG_HAL_OPT_FLAGS
+       prompt "Additional optimize flags for HAL"
+       string 
+       default "-mtune=generic"
+
+choice
+	prompt "Debug Serial Port"
+	default CONFIG_DBG_SERIAL_COM1
+
+config CONFIG_DBG_SERIAL_COM1
+       	bool "COM1"
+
+config CONFIG_DBG_SERIAL_COM2
+        bool "COM2"
+
+endchoice
