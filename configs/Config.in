@@ -5,6 +5,11 @@
 
 mainmenu "Kernel Configuration"
 
+config CONFIG_CHECK_SPINLOCKS
+       prompt "Check spinlock owner and lock depth"
+       bool
+       default n
+
 config CONFIG_OPT_FLAGS
        prompt "Generic optimize flags"
        string 

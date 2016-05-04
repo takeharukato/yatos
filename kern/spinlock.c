@@ -108,7 +108,11 @@ void
 spinlock_lock(spinlock *lock) {
 
 	ti_disable_dispatch();
+
+#if defined(CONFIG_CHECK_SPINLOCKS)
 	kassert( ( lock->type & SPINLOCK_TYPE_RECURSIVE ) || ( !check_recursive_locked(lock) ) );
+#endif  /*  CONFIG_CHECK_SPINLOCKS  */
+
 	hal_spinlock_lock(lock);
 	fill_spinlock_trace(lock);
 	++lock->depth;
@@ -121,7 +125,10 @@ spinlock_lock(spinlock *lock) {
 void
 spinlock_unlock(spinlock *lock) {
 
+#if defined(CONFIG_CHECK_SPINLOCKS)
 	kassert( ( lock->type & SPINLOCK_TYPE_RECURSIVE ) || ( lock->depth == 1) );
+#endif  /*  CONFIG_CHECK_SPINLOCKS  */
+
 	--lock->depth;
 	lock->owner = NULL;
 	hal_spinlock_unlock(lock);
