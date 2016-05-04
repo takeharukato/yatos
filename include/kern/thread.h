@@ -76,6 +76,10 @@ typedef enum _thread_type{
 #define THR_IDLE_TID       (ID_RESV_IDLE)    /*< アイドルスレッド/カーネルプロセスのtid  */
 #define THR_INVALID_TID    (ID_RESV_INVALID) /*< 未初期化スレッドのtid                   */
 
+/** ラウンドロビンスケジューリング優先度
+ */
+#define THR_RR_PRIO      (0)
+
 struct _thread_queue;
 struct _proc;
 
@@ -100,7 +104,9 @@ typedef struct _thread{
 	queue              exit_waiters;  /*< 終了待ち合わせ子スレッド群                    */
 	queue                  children;  /*< 子スレッド群                                  */
 	thread_resource        resource;  /*< スレッド消費資源                              */
-	thr_prio                   prio;  /*< スレッドの優先度                              */
+	thr_prio                   prio;  /*< スレッドの静的優先度                          */
+	thr_prio                  slice;  /*< スレッドのタイムスライス                      */
+	thr_prio              cur_slice;  /*< 現在のタイムスライス                          */
 	thread_flags          thr_flags;  /*< スレッドの属性コード                          */
 	thread_type                type;  /*< スレッド種別                                  */
 	kstack_type                 ksp;  /*< カーネルスタックの先頭アドレス                */

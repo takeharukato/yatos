@@ -45,9 +45,21 @@ timer_handler(intr_no __attribute__ ((unused)) no, private_inf __attribute__ ((u
 
 	++uptime.tick_cnt;
 	cur_tick = uptime.tick_cnt;
-
 	spinlock_unlock_restore_intr( &uptime.lock, &flags);
 
+	/*
+	 * スレッドのタイムスライスを消費
+	 */
+	if ( ( current->prio == THR_RR_PRIO ) && ( current->tid != THR_IDLE_TID ) ) {
+
+		kassert( current->cur_slice > 0 );
+		--current->cur_slice;
+		if ( current->cur_slice == 0 ) {
+		
+			current->cur_slice = current->slice;
+			thr_yield();
+		}
+	}
 	if ( current->p != hal_refer_kernel_proc() ) {
 		
 		/*

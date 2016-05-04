@@ -44,7 +44,7 @@ hal_load_system_procs(void) {
 	for( i = 0; info->nr_mod > i; ++i) {
 		
 		mod = &info->modules[i];
-		rc = proc_create(&p, 0, mod->param, x86_64_default_environ, 
+		rc = proc_create(&p, THR_RR_PRIO, mod->param, x86_64_default_environ, 
 		    (void *)PHY_TO_KERN_STRAIGHT(mod->start));
 		kassert(rc == 0);
 

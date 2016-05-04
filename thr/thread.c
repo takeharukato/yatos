@@ -109,7 +109,7 @@ create_thread_common(thread *thr, int prio) {
 	list_del( &thr->link );  /*  未使用スレッドキューから外す  */
 	spinlock_unlock_restore_intr( &thr_free_queue.lock, &flags );
 
-	thr->prio = prio;  /*  スレッドの属性にprioを設定  */
+	thr->prio = prio;  /*  スレッドの属性にprioを設定     */
 
 	spinlock_lock_disable_intr( &thr_dormant_queue.lock, &flags );
 	tq_add(&thr_dormant_queue, thr);  /* 停止キューに追加  */
@@ -173,6 +173,12 @@ _thr_init_kthread_params(thread *thr) {
 	spinlock_lock_disable_intr( &thr->p->lock, &flags );
 	queue_add( &thr->p->threads, &thr->plink );  /* カーネル空間にスレッドを追加  */
 	spinlock_unlock_restore_intr( &thr->p->lock, &flags );
+
+	/*
+	 * タイムスライスのデフォルト値を設定
+	 */
+	thr->slice = THR_DEFAULT_SLICE;  
+	thr->cur_slice = THR_DEFAULT_SLICE; 
 
 	thr->exit_code = 0; 	/*  exit_codeを0に設定  */
 }
@@ -745,20 +751,20 @@ void
 thr_yield(void) {
 	intrflags flags;
 
+	hal_cpu_disable_interrupt(&flags);
+	current->status = THR_TSTATE_READY;    /*  スレッドの状態をTHR_TSTATE_READYに遷移  */
 	if ( ti_dispatch_disabled(ti_get_current_tinfo()) ) {
 		
 		/* スケジュール不能区間だった場合は, 遅延ディスパッチフラグを
 		 * 立てて抜ける
 		 */
 		ti_set_delay_dispatch(ti_get_current_tinfo());
-		return; 
+		goto unmask_out; 
 	}
 
-	hal_cpu_disable_interrupt(&flags);
-
-	current->status = THR_TSTATE_READY;    /*  スレッドの状態をTHR_TSTATE_READYに遷移  */
 	sched_schedule();
 
+unmask_out:
 	hal_cpu_restore_interrupt(&flags);
 }
 

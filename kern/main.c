@@ -39,6 +39,7 @@ _setup_test_progs(void) {
 	//lpc2_test();
 	//kserv_test();
 	//wait_test();
+	//thread_round_robin_test();
 }
 
 void

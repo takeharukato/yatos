@@ -155,9 +155,6 @@ sched_schedule(void) {
 
 	ti = current->ti;
 
-	if ( current->status == THR_TSTATE_RUN )
-		goto no_need_sched;  /*  スケジューラ呼び出し前に起床された  */
-
 	if ( ti_dispatch_disabled(ti) ) {  /* ディスパッチ禁止区間から呼ばれた  */
 
 		kprintf(KERN_WAR, "sched: scheduler is called in critical section!\n");
@@ -167,6 +164,9 @@ sched_schedule(void) {
 
 	ti_clr_thread_info(ti); /* 遅延ディスパッチ要求をクリア  */
 	ti->preempt &= ~THR_PREEMPT_ACTIVE;  /*  ディスパッチ要求受付完了  */
+
+	if ( current->status == THR_TSTATE_RUN )
+		goto no_need_sched;  /*  スケジューラ呼び出し前に起床された  */
 
 	next = ready_queue_get_next_thread();  /* 次に実行するスレッドを選択  */
 	if ( next == current ) /* 他に動作させるスレッドがない  */
