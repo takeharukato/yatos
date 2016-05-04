@@ -617,12 +617,13 @@ proc_destroy(proc *p){
 	}
 
 	p->status = PROC_PSTATE_EXIT; /* これ以降スレッドを追加できないようにする  */
-	spinlock_unlock_restore_intr( &p->lock, &flags );
 
         /*
 	 *  アドレス空間の解放
 	 */
 	vm_destroy( &p->vm );
+
+	spinlock_unlock_restore_intr( &p->lock, &flags );
 
 	rc = 0;
 
