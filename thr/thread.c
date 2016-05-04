@@ -127,6 +127,7 @@ thread_resource_init(thread_resource *thr_res) {
 
 	kassert( thr_res != NULL );
 
+	thr_res->gen                = 0;
 	thr_res->sys_time           = 0;
 	thr_res->user_time          = 0;
 	thr_res->children_sys_time  = 0;

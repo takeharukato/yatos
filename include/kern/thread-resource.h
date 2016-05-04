@@ -23,6 +23,7 @@
 /** スレッド消費資源
  */
 typedef struct _thread_resource{
+	obj_cnt_type          gen;  /*< 更新回数                  */
 	ticks            sys_time;  /*< システム時間              */
 	ticks           user_time;  /*< ユーザ時間                */
 	ticks   children_sys_time;  /*< 子スレッドのシステム時間  */

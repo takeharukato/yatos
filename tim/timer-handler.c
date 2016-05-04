@@ -65,6 +65,7 @@ timer_handler(intr_no __attribute__ ((unused)) no, private_inf __attribute__ ((u
 		/*
 		 * ユーザスレッドの場合は, CPU消費資源量を更新
 		 */
+		++current->resource.gen;  /*  更新回数をインクリメント  */
 		if ( hal_is_intr_from_user(ctx) )
 			++current->resource.user_time;
 		else

@@ -181,6 +181,8 @@ handle_get_thread_resource(proc_sys_getrusage *getrusg, endpoint __attribute__ (
 	int               rc;
 	thread          *thr;
 	intrflags      flags;
+	obj_cnt_type    gen1;
+	obj_cnt_type    gen2;
 
 	kassert( getrusg != NULL );
 
@@ -192,9 +194,15 @@ handle_get_thread_resource(proc_sys_getrusage *getrusg, endpoint __attribute__ (
 		goto error_out;
 	}
 
-	spinlock_lock_disable_intr( &thr->lock, &flags );
-	memcpy( &getrusg->res, &thr->resource, sizeof(thread_resource) );
-	spinlock_unlock_restore_intr( &thr->lock, &flags );
+	/*
+	 * ロックフリープロトコルによる資源量獲得
+	 */
+	do {
+
+		gen1 = thr->resource.gen;
+		memcpy( &getrusg->res, &thr->resource, sizeof(thread_resource) );
+		gen2 = thr->resource.gen;
+	}while( gen1 != gen2 );
 
 	release_all_thread_lock(&flags);
 
