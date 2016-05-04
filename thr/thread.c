@@ -178,7 +178,8 @@ _thr_init_kthread_params(thread *thr) {
 	 * タイムスライスのデフォルト値を設定
 	 */
 	thr->slice = THR_DEFAULT_SLICE;  
-	thr->cur_slice = THR_DEFAULT_SLICE; 
+	thr->cur_slice = thr->slice; 
+	kassert( thr->slice >= THR_NIN_SLICE );
 
 	thr->exit_code = 0; 	/*  exit_codeを0に設定  */
 }

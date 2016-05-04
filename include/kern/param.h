@@ -15,7 +15,7 @@
 #define THR_MAX_PRIO            (32)
 #define THR_MAX_USER_PRIO       (16)
 #define THR_MAX_SLICE           (40)
-#define THR_DEFAULT_SLICE       (10)
+#define THR_DEFAULT_SLICE       (21)
 #define THR_NIN_SLICE           (1)
 #define PAGE_POOL_MAX_ORDER     (11)      /*< 最大4MiBページ                               */
 #define KSTACK_ORDER            (1)       /*< 2ページ                                      */
