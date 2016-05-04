@@ -99,11 +99,11 @@ page_buddy_enqueue(page_buddy *buddy, obj_cnt_type pfn) {
 	page_frame   *buddy_page;
 	queue              *area;
 	page_order_mask     mask;
-	intrflags          flags;
 
 	kassert( buddy->array != NULL );
 	kassert( ( buddy->start_pfn <= pfn ) &&
 	    ( pfn < ( buddy->start_pfn + buddy->nr_pages ) ) );
+	kassert( spinlock_locked_by_self(&buddy->lock) );
 	
 	/*  解放対象のページフレーム情報を得る */
 	rc = pfn_to_page_frame(pfn, &req_page);
@@ -131,9 +131,6 @@ page_buddy_enqueue(page_buddy *buddy, obj_cnt_type pfn) {
 	/*  解放対象のページのキューを取得  */
 	area = &buddy->page_list[cur_order];
 	
-	/*  バディ全体のロックを獲得  */
-	spinlock_lock_disable_intr(&buddy->lock, &flags);
-
 	/*  ページを開放状態に設定  */
 	req_page->state &= ~PAGE_CSTATE_USED;
 
@@ -217,7 +214,6 @@ page_buddy_enqueue(page_buddy *buddy, obj_cnt_type pfn) {
 	 */
 	queue_add(area, &cur_page->link);  
 	++buddy->free_nr[cur_page->order];
-	spinlock_unlock_restore_intr(&buddy->lock, &flags);
 
 	return;
 }
@@ -233,16 +229,15 @@ page_buddy_enqueue(page_buddy *buddy, obj_cnt_type pfn) {
 int
 page_buddy_dequeue(page_buddy *buddy, page_order order, obj_cnt_type *pfnp){
 	page_order cur_order;
-	intrflags      flags;
 	page_frame *cur_page;
+
+	kassert( spinlock_locked_by_self(&buddy->lock) );
 
 	if ( (pfnp == NULL) || 
 	    (order >= PAGE_POOL_MAX_ORDER) )
 		return -EINVAL;  /* ページフレーム情報返却域 or 要求したページオーダが不正 */
 
 	cur_order = order;
-
-	spinlock_lock_disable_intr(&buddy->lock, &flags);
 
 	while (cur_order < PAGE_POOL_MAX_ORDER) { /* 空きページがあるキューを順番に調べる */
 
@@ -258,7 +253,6 @@ page_buddy_dequeue(page_buddy *buddy, page_order order, obj_cnt_type *pfnp){
 			    cur_page, order, cur_order);  
 
 			cur_page->state |= PAGE_CSTATE_USED; /* ページを使用中にする */
-			spinlock_unlock_restore_intr(&buddy->lock, &flags);
 
 			*pfnp = cur_page->pfn;  /* ページフレーム番号を返却する  */
 
@@ -281,7 +275,6 @@ page_buddy_dequeue(page_buddy *buddy, page_order order, obj_cnt_type *pfnp){
 		++cur_order;  /*  より上のオーダからページを切り出す  */
 	}
 
-	spinlock_unlock_restore_intr(&buddy->lock, &flags);
 
 	return -ENOMEM;
 }

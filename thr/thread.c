@@ -197,26 +197,45 @@ kcom_launch_new_thread(int (*start)(void *), void *arg) {
 	/* ここには来ない */
 }
 
+/** 全スレッドロックを獲得する
+    @param[in] flags 割込み状態保存領域のアドレス
+ */
+void
+acquire_all_thread_lock(intrflags *flags) {
+
+	spinlock_lock_disable_intr( &thr_created_tree.lock, flags );
+}
+
+/** 全スレッドロックを解放する
+    @param[in] flags 割込み状態保存領域のアドレス
+ */
+void
+release_all_thread_lock(intrflags *flags) {
+
+	spinlock_unlock_restore_intr( &thr_created_tree.lock, flags );	
+}
+
 /** 生成済みのスレッドをTIDをキーに検索する
     @param[in] tid 検索キーとなるスレッドID
     @return NULLでないポインタ 見つかったスレッドのスレッド構造体へのポインタ
     @return NULL               keyで指定したスレッドが見つからなかった
  */
 thread *
-thr_find_thread_by_tid(tid key) {
-	intrflags    flags;
+thr_find_thread_by_tid_nolock(tid key) {
+	//intrflags    flags;
 	thread        *res;
 	thread     key_thr;
+
+	kassert( spinlock_locked_by_self(&thr_created_tree.lock) );
 
 	if ( ( key == THR_IDLE_TID ) || ( key == THR_INVALID_TID ) )
 		return NULL;  /*  不当ID  */
 
 	key_thr.tid = key;
-	spinlock_lock_disable_intr( &thr_created_tree.lock, &flags ); /*  全スレッド追跡用のキューに追加  */
+
 	res = RB_FIND(thread_id_tree, &thr_created_tree.booking, &key_thr);
 	if ( ( res != NULL) && ( res->status == THR_TSTATE_EXIT ) )
 		res = NULL;  /* 終了しようとしているスレッド  */
-	spinlock_unlock_restore_intr( &thr_created_tree.lock, &flags );
 
 	return res;
 }
@@ -304,10 +323,12 @@ thr_create_kthread(thread *thr, int prio, thread_flags thr_flags, tid newid,
 	thr->thr_flags = thr_flags;   /*  属性情報を設定  */
 
 	/*  全スレッド追跡用のキューに追加  */	
-	spinlock_lock_disable_intr( &thr_created_tree.lock, &flags );
+	acquire_all_thread_lock( &flags );
+
 	res = RB_INSERT(thread_id_tree, &thr_created_tree.booking, thr);
 	kassert( res == NULL );
-	spinlock_unlock_restore_intr( &thr_created_tree.lock, &flags );
+
+	release_all_thread_lock( &flags );  /*  全スレッド追跡用のキューに追加  */
 
 	thr->type = THR_TYPE_KERNEL;  /*  スレッド種別をカーネルスレッドに設定  */
 
@@ -364,10 +385,13 @@ thr_create_uthread(thread *thr, int prio, thread_flags thr_flags, proc *p,
 
 	thr->thr_flags = thr_flags;   /*  属性情報を設定  */
 
-	spinlock_lock_disable_intr( &thr_created_tree.lock, &flags ); /*  全スレッド追跡用のキューに追加  */
+	/*  全スレッド追跡用のキューに追加  */
+	acquire_all_thread_lock( &flags );
+
 	res = RB_INSERT(thread_id_tree, &thr_created_tree.booking, thr);
 	kassert( res == NULL );
-	spinlock_unlock_restore_intr( &thr_created_tree.lock, &flags );
+
+	release_all_thread_lock( &flags );
 
 	thr->type = THR_TYPE_USER;  /*  スレッド種別をユーザスレッドに設定  */
 
@@ -404,7 +428,8 @@ thr_start(thread *thr, tid ptid) {
 	if ( thr->status != THR_TSTATE_DORMANT )
 		return -EINVAL;
 
-	pthr = thr_find_thread_by_tid( ptid );
+	acquire_all_thread_lock( &flags );
+	pthr = thr_find_thread_by_tid_nolock( ptid );
 	/* 親スレッドがいない場合や親がカーネルスレッドの場合は, 待ち合わせフラグを落とす  */
 	if ( pthr == NULL ) 
 		thr->thr_flags &= ~THR_FLAG_JOINABLE; 
@@ -417,16 +442,17 @@ thr_start(thread *thr, tid ptid) {
 		/*
 		 * 親スレッドの子スレッド管理キューに追加する
 		 */
-		spinlock_lock_disable_intr( &pthr->lock, &flags );
+		spinlock_lock( &pthr->lock );
 		queue_add( &pthr->children, &thr->parent_link );
 		thr->ptid = ptid;  /* 親スレッドのIDを設定  */
 
 		/*  親スレッドのイベントマスクをコピーする  */
 		memcpy( &thr->evque.masks, &pthr->evque.masks, sizeof(event_mask) );
 
-		spinlock_unlock_restore_intr( &pthr->lock, &flags );
+		spinlock_unlock( &pthr->lock );
 	}
-
+	release_all_thread_lock( &flags );
+	
 	spinlock_lock_disable_intr( &thr_dormant_queue.lock, &flags );
 
 	tq_del(&thr_dormant_queue, thr);  /* 停止キューから削除  */
@@ -479,20 +505,22 @@ thr_exit(exit_code rc) {
 	/*
 	 * 親スレッドとの終了同期
 	 */
-	pthr = thr_find_thread_by_tid( current->ptid );
+	acquire_all_thread_lock( &flags );
+	pthr = thr_find_thread_by_tid_nolock( current->ptid );
 	if ( pthr != NULL ) {
 
 		/*
 		 * 親スレッドの子スレッドキューから外す
 		 */
-		spinlock_lock_disable_intr( &pthr->lock, &flags );
+		spinlock_lock( &pthr->lock );
 		list_del( &current->parent_link );
-		spinlock_unlock_restore_intr( &pthr->lock, &flags );
+		spinlock_unlock( &pthr->lock );
 	} else {
 
 		kassert( !( current->thr_flags & THR_FLAG_JOINABLE ) );
 		current->thr_flags &= ~THR_FLAG_JOINABLE;
 	}
+	release_all_thread_lock( &flags );
 
 	/* カーネルから起動したスレッドやJOINABLEでない
 	 * スレッドは待ち合わせを行わない  
@@ -532,9 +560,9 @@ enter_dead:
 	ti_disable_dispatch();
 
 	/*  全スレッド追跡用のキューから削除  */
-	spinlock_lock_disable_intr( &thr_created_tree.lock, &flags ); 
+	acquire_all_thread_lock( &flags );
 	RB_REMOVE(thread_id_tree, &thr_created_tree.booking, current); 
-	spinlock_unlock_restore_intr( &thr_created_tree.lock, &flags );
+	release_all_thread_lock( &flags );
 
 	ev_free_pending_events( &current->evque );  /* 未配送イベントの削除    */
 	lpc_destroy_msg_queue( &current->mque );    /* メッセージキューの削除  */
@@ -610,10 +638,12 @@ thr_destroy(thread *thr) {
 	int           rc;
 	intrflags  flags;
 
+	kassert( !spinlock_locked_by_self(&thr_created_tree.lock) );
 	kassert( !check_recursive_locked(&thr->lock) );
 	kassert( thr != current );
 
-	spinlock_lock_disable_intr( &thr->lock, &flags );
+	acquire_all_thread_lock( &flags );
+	spinlock_lock( &thr->lock );
 
 	if ( ( thr->status != THR_TSTATE_EXIT ) &&
 	    ( thr->status != THR_TSTATE_DORMANT ) && 
@@ -630,9 +660,7 @@ thr_destroy(thread *thr) {
 
 		/** THR_TSTATE_DORMANTの場合は, 生成済みスレッドのツリーに残存しているので削除
 		 */
-		spinlock_lock( &thr_created_tree.lock );
 		RB_REMOVE(thread_id_tree, &thr_created_tree.booking, current); /*  全スレッド追跡用のキューから削除  */
-		spinlock_unlock( &thr_created_tree.lock );
 	}
 
 	if ( !list_not_linked( &thr->link ) ) {
@@ -641,7 +669,7 @@ thr_destroy(thread *thr) {
 		goto error_out;
 	}
 
-	if ( thr_find_thread_by_tid(thr->tid) != NULL ) {
+	if ( thr_find_thread_by_tid_nolock(thr->tid) != NULL ) {
 		
 		rc = -EMLINK;  /*  全スレッド追跡用のツリーにつながっている  */
 		goto error_out;
@@ -652,14 +680,17 @@ thr_destroy(thread *thr) {
 	put_id( &thr_idpool, thr->tid );  /* IDを返却  */
 	free_buddy_pages( thr->ksp );  /*  スタックを解放  */
 
-	spinlock_unlock_restore_intr( &thr->lock, &flags );
+	spinlock_unlock( &thr->lock );
+	release_all_thread_lock( &flags );
 
 	kfree( thr );  /*  スレッド情報を解放  */		
 
 	return 0;
 
 error_out:
-	spinlock_unlock_restore_intr(&thr->lock, &flags);
+	spinlock_unlock( &thr->lock );
+	release_all_thread_lock( &flags );
+
 	return rc;
 }
 

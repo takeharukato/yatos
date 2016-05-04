@@ -52,7 +52,7 @@ fill_spinlock_trace(spinlock *lock) {
 bool 
 spinlock_locked_by_self(spinlock *lock) {
 
-	return ( ( lock->locked != 0 ) && ( lock->owner == current ) ); 
+	return ( ( lock->locked != 0 ) && ( lock->owner == ti_get_current_tinfo() ) ); 
 }
 
 /** スピンロックを多重に獲得していることを確認する
@@ -108,11 +108,11 @@ void
 spinlock_lock(spinlock *lock) {
 
 	ti_disable_dispatch();
-	kassert( !( lock->type & SPINLOCK_TYPE_RECURSIVE ) || ( check_recursive_locked(lock) ) );
+	kassert( ( lock->type & SPINLOCK_TYPE_RECURSIVE ) || ( !check_recursive_locked(lock) ) );
 	hal_spinlock_lock(lock);
 	fill_spinlock_trace(lock);
 	++lock->depth;
-	lock->owner = current;
+	lock->owner = ti_get_current_tinfo();
 }
 
 /** スピンロックを解放する
@@ -121,8 +121,9 @@ spinlock_lock(spinlock *lock) {
 void
 spinlock_unlock(spinlock *lock) {
 
-	lock->owner = NULL;
+	kassert( ( lock->type & SPINLOCK_TYPE_RECURSIVE ) || ( lock->depth == 1) );
 	--lock->depth;
+	lock->owner = NULL;
 	hal_spinlock_unlock(lock);
 	ti_enable_dispatch();
 }

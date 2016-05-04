@@ -66,7 +66,9 @@ void calc_page_order(size_t _size, page_order *_res);
 
 int kvaddr_to_page_frame(void *addrp, page_frame  **pp);
 int pfn_to_page_frame(obj_cnt_type _pfn, page_frame  **_pp);
-bool is_pfn_valid(obj_cnt_type _pfn);
+
+bool kcom_is_pfn_valid_nolock(obj_cnt_type _pfn);
+bool kcom_is_pfn_valid(obj_cnt_type _pfn);
 
 int hal_pfn_to_kvaddr(obj_cnt_type _pfn, void **_kvaddrp);
 int hal_kvaddr_to_pfn(void *_kvaddr, obj_cnt_type *_pfnp);

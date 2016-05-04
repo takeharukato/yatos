@@ -36,6 +36,7 @@ static thread *dbg_console_thr;
 
 static int
 dbg_console_thread(void __attribute__ ((unused)) *arg) {
+	intrflags         flags;
 	thread         *req_thr;
 	msg_body            msg;
 	pri_string_msg    *pmsg;
@@ -67,13 +68,16 @@ dbg_console_thread(void __attribute__ ((unused)) *arg) {
 		    rc, src, pmsg->msg, pmsg->len);
 #endif  /*  DEBUG_DBG_CON  */
 
-		req_thr = thr_find_thread_by_tid(src);
+		acquire_all_thread_lock( &flags );
+
+		req_thr = thr_find_thread_by_tid_nolock(src);
 		if ( req_thr == NULL ) {
 
 #if defined(DEBUG_DBG_CON)
 			kprintf(KERN_DBG, MSG_PREFIX "src=%d not found.\n",
 			    rc, src);
 #endif  /*  DEBUG_DBG_CON  */
+			release_all_thread_lock(&flags);
 			continue;
 		}
 
@@ -85,6 +89,9 @@ dbg_console_thread(void __attribute__ ((unused)) *arg) {
 			    MSG_PREFIX "Can not access %p length: %d by tid=%d\n",
 			    pmsg->msg, pmsg->len, req_thr->tid);
 #endif  /*  DEBUG_DBG_CON  */
+
+			release_all_thread_lock(&flags);
+
 			pmsg->rc = -EPERM;
 			rc = lpc_send(src, LPC_INFINITE, &msg);
 			kassert( rc == 0 );
@@ -99,6 +106,8 @@ dbg_console_thread(void __attribute__ ((unused)) *arg) {
 		hal_switch_address_space( current->p,  req_thr->p);
 		kprintf(KERN_INF, "%s", pmsg->msg);
 		hal_switch_address_space( req_thr->p, current->p);
+
+		release_all_thread_lock(&flags);
 
 		pmsg->rc = pmsg->len;
 		rc = lpc_send(src, LPC_INFINITE, &msg);

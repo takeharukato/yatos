@@ -87,7 +87,7 @@ check_page_reserved(karch_info *info, uintptr_t paddr) {
 int
 hal_pfn_to_kvaddr(obj_cnt_type pfn, void **kvaddrp) {
 
-	if ( !is_pfn_valid(pfn) )
+	if ( !kcom_is_pfn_valid_nolock(pfn) )
 		return -ENOENT;
 
 	*kvaddrp = (void *)PHY_TO_KERN_STRAIGHT( ( ( (uintptr_t)pfn ) << PAGE_SHIFT ) );
@@ -107,7 +107,7 @@ hal_kvaddr_to_pfn(void *kvaddr, obj_cnt_type *pfnp) {
 
 	pfn = ( KERN_STRAIGHT_TO_PHY((uintptr_t)kvaddr) ) >> PAGE_SHIFT;
 
-	if ( !is_pfn_valid(pfn) )
+	if ( !kcom_is_pfn_valid(pfn) )
 		return -ENOENT;
 
 	*pfnp = pfn;

@@ -212,19 +212,28 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 	sync_block timer_sb;
 	timer_callout cb;
 
-	thr = thr_find_thread_by_tid(dest);
-	if ( thr == NULL )
+	acquire_all_thread_lock( &flags );
+	thr = thr_find_thread_by_tid_nolock(dest);
+	if ( thr == NULL ) {
+
+		release_all_thread_lock(&flags);
 		return -ENOENT;  /*  宛先不明  */
+	}
 
 	q = &thr->mque;
-	rc = lpc_msg_alloc(&new_msg, KMALLOC_NORMAL );
-	if ( rc != 0 )  /*  メモリ獲得失敗  */
-		return rc;
 
+	rc = lpc_msg_alloc(&new_msg, KMALLOC_NORMAL );
+	if ( rc != 0 )  { /*  メモリ獲得失敗  */
+
+		release_all_thread_lock(&flags);
+		return rc;
+	}
 	/*
 	 * 送信待ちスレッドがいない場合は, 受信側スレッドを待ち合わせる
 	 */
-	spinlock_lock_disable_intr( &q->lock, &flags);
+	spinlock_lock( &q->lock );
+	release_all_thread_lock(&flags);
+
 	while( queue_is_empty( &q->wait_sender.que ) ){
 		
 		if ( tmout == 0 ) {
@@ -234,7 +243,7 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 		} else if ( tmout < 0 ) {
 
 			_sync_wait_no_schedule( &q->wait_reciever, &blk );
-			spinlock_unlock_restore_intr( &q->lock, &flags);
+			spinlock_unlock( &q->lock );
 
 			if ( current->status == THR_TSTATE_WAIT )
 				sched_schedule();  /*  休眠実施  */			
@@ -249,12 +258,12 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 				return -ENOENT;  
 			}
 
-			spinlock_lock_disable_intr( &q->lock, &flags);
+			spinlock_lock( &q->lock );
 		} else {
 
 			_tim_wait_obj_no_schedule(&q->wait_reciever, &timer_obj, 
 			    &blk, &timer_sb, &cb, tmout);
-			spinlock_unlock_restore_intr( &q->lock, &flags);
+			spinlock_unlock( &q->lock );
 
 			if ( current->status == THR_TSTATE_WAIT )
 				sched_schedule();  /*  休眠実施  */			
@@ -276,7 +285,17 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 				return -EAGAIN;
 			}
 
-			spinlock_lock_disable_intr( &q->lock, &flags);
+			acquire_all_thread_lock( &flags );
+			thr = thr_find_thread_by_tid_nolock(dest);
+			if ( thr == NULL ) {
+				
+				release_all_thread_lock(&flags);
+				return -ENOENT;  /*  宛先不明  */
+			}
+
+			q = &thr->mque;
+			spinlock_lock( &q->lock );
+			release_all_thread_lock(&flags);
 		}
 	}
 
@@ -293,7 +312,7 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 
 	sync_wake( &q->wait_sender, SYNC_WAI_RELEASED);  /*  受信者を起床  */
 
-	spinlock_unlock_restore_intr( &q->lock, &flags);
+	spinlock_unlock( &q->lock );
 
 	if ( current->status == THR_TSTATE_WAIT )
 		sched_schedule();  /*  休眠実施  */			
@@ -311,7 +330,9 @@ msg_free_out:
 	lpc_msg_free(new_msg);
 
 unlock_out:
-	spinlock_unlock_restore_intr( &q->lock, &flags);
+	spinlock_unlock( &q->lock );
+	release_all_thread_lock(&flags);
+
 	return rc;
 }
 

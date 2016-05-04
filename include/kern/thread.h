@@ -130,7 +130,9 @@ typedef struct _thread_dic{
 
 void thr_idpool_init(void);
 /*   IF関数  */
-thread *thr_find_thread_by_tid(tid _key);
+void acquire_all_thread_lock(intrflags *flags);
+void release_all_thread_lock(intrflags *flags);
+thread *thr_find_thread_by_tid_nolock(tid _key);
 int  thr_new_thread(thread **_thrp);
 int  thr_create_kthread(thread *_thr, int _prio, thread_flags _thr_flags, tid _newid, 
     int (*_fn)(void *), void *_arg);

@@ -49,18 +49,32 @@ handle_send_event(proc_sys_send_event *sndev, endpoint src) {
 	thread      *thr;
 	event_node *node;
 	evinfo     *info;
+	intrflags  flags;
+	tid     src_tid;
 
-	thr = thr_find_thread_by_tid(src);
-	if ( thr == NULL ) 
-		return -ENOENT;
+	acquire_all_thread_lock( &flags );
+
+	thr = thr_find_thread_by_tid_nolock(src);
+	if ( thr == NULL ) {
+
+		rc = -ENOENT;
+		release_all_thread_lock(&flags);
+		goto error_out;
+	}
+
+	src_tid = thr->tid;
+	release_all_thread_lock(&flags);
+
 	rc = ev_alloc_node(sndev->id, &node);	
 	if ( rc != 0 ) 
-		return rc;
+		goto error_out;
+
 	info = &node->info;
 
-	info->sender_id = thr->tid;
+	info->sender_id = src_tid;
 	info->code = EV_SIG_SI_USER;
 	info->data = sndev->data;
+
 
 	rc = ev_send(sndev->dest, node);
 	if ( rc != 0 )
@@ -70,6 +84,7 @@ handle_send_event(proc_sys_send_event *sndev, endpoint src) {
 
 free_mem_out:
 	kfree( node );
+error_out:
 	return rc;
 }
 
@@ -87,46 +102,70 @@ handle_create_thread(proc_sys_create_thread *crethr, endpoint src) {
 	int               rc;
 	thread         *pthr;
 	thread      *new_thr;
+	tid             ptid;
+	intrflags      flags;
 
 	kassert( crethr != NULL );
 
-	pthr = thr_find_thread_by_tid(src);
-	if ( pthr == NULL ) 
-		return -ENOENT;
+	acquire_all_thread_lock( &flags );
+	pthr = thr_find_thread_by_tid_nolock(src);
+	if ( pthr == NULL ) {
+
+		rc = -ENOENT;
+		goto unlock_out;
+	}
 
 	kassert( pthr->p != hal_refer_kernel_proc() );
 
-	if ( crethr->prio >= THR_MAX_USER_PRIO )
-		return -EINVAL;
+	if ( crethr->prio >= THR_MAX_USER_PRIO ) {
+
+		rc = -EINVAL;
+		goto unlock_out;
+	}
 
 	if ( !vm_user_area_can_access(&pthr->p->vm, crethr->sp, 
-		PAGE_SIZE, VMA_PROT_R|VMA_PROT_W) )
-		return -EFAULT;
+		PAGE_SIZE, VMA_PROT_R|VMA_PROT_W) ) {
+
+		rc = -EFAULT;
+		goto unlock_out;
+	}
 
 	if ( !vm_user_area_can_access(&pthr->p->vm, crethr->start, 
-		PAGE_SIZE, VMA_PROT_X) )
-		return -EFAULT;
-	
+		PAGE_SIZE, VMA_PROT_X) ) {
+
+		rc = -EFAULT;
+		goto unlock_out;
+	}
+
 	rc = thr_new_thread(&new_thr);  /*  スレッドを作成 */
 	if ( rc != 0 )
-		goto error_out;
+		goto unlock_out;
+
+	ptid = pthr->tid;  /* 親スレッドのtidを記憶しておく  */
+
+	release_all_thread_lock(&flags); /*  thr_create_uthreadを呼ぶ前にスレッドロックを解放  */
 
 	rc = thr_create_uthread(new_thr, crethr->prio, THR_FLAG_JOINABLE, pthr->p, 
 	    crethr->start, (uintptr_t)crethr->arg1, (uintptr_t)crethr->arg2, (uintptr_t)crethr->arg3, 
 	    (void *)crethr->sp);
-	if ( rc != 0 )
-		goto free_thread_out;
+	if ( rc != 0 ) {
+
+		thr_destroy( new_thr );
+		goto error_out;
+	}
 
 	crethr->id = new_thr->tid;
+	rc = thr_start(new_thr, ptid);  /*  thr_start内部でptidのスレッドの活性確認をする  */
+	if ( rc != 0 ) {
 
-	rc = thr_start(new_thr, pthr->tid);
-	if ( rc != 0 )
-		goto free_thread_out;
+		thr_destroy( new_thr );
+		goto error_out;
+	}
 
 	return 0;
 
-free_thread_out:
-	thr_destroy( new_thr );
+unlock_out:
+	release_all_thread_lock(&flags);
 error_out:
 	return rc;
 }
@@ -139,20 +178,31 @@ error_out:
  */
 static int
 handle_get_thread_resource(proc_sys_getrusage *getrusg, endpoint __attribute__ ((unused)) src) {
+	int               rc;
 	thread          *thr;
 	intrflags      flags;
 
 	kassert( getrusg != NULL );
 
-	thr = thr_find_thread_by_tid(getrusg->id);
-	if ( thr == NULL ) 
-		return -ENOENT;
+	acquire_all_thread_lock( &flags );
+	thr = thr_find_thread_by_tid_nolock(getrusg->id);
+	if ( thr == NULL ) { 
+
+		rc = -ENOENT;
+		goto error_out;
+	}
 
 	spinlock_lock_disable_intr( &thr->lock, &flags );
 	memcpy( &getrusg->res, &thr->resource, sizeof(thread_resource) );
 	spinlock_unlock_restore_intr( &thr->lock, &flags );
 
+	release_all_thread_lock(&flags);
+
 	return 0;
+
+error_out:
+	release_all_thread_lock(&flags);
+	return rc;
 }
 
 /** プロセスサービス処理部

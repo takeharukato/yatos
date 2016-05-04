@@ -107,12 +107,13 @@ kthreadA(void __attribute__ ((unused)) *arg) {
 
 int
 kthreadB(void __attribute__ ((unused)) *arg) {
-	thread *req_thr;
-	msg_body msg;
+	thread         *req_thr;
+	msg_body            msg;
 	kname_service_msg *nsrv;
 	pri_string_msg    *pmsg;
 	endpoint            src;
-	int rc;
+	intrflags         flags;
+	int                  rc;
 
 	kprintf(KERN_INF, SERV_NAME ":tid=%d thread=%p\n", 
 	    current->tid, current);
@@ -181,13 +182,17 @@ kthreadB(void __attribute__ ((unused)) *arg) {
 		kprintf(KERN_DBG, SERV_NAME ":recv:rc=%d src=%d msg=[%p] len=%d\n",
 		    rc, src, pmsg->msg, pmsg->len);
 
-		req_thr = thr_find_thread_by_tid(src);
+		acquire_all_thread_lock( &flags );
+
+		req_thr = thr_find_thread_by_tid_nolock(src);
 		if ( req_thr == NULL ) {
 
 			kprintf(KERN_DBG, SERV_NAME ":src=%d not found.\n",
 			    rc, src);
+			release_all_thread_lock(&flags);
 			continue;
 		}
+
 		if ( !vm_user_area_can_access(&req_thr->p->vm, pmsg->msg, pmsg->len,
 			VMA_PROT_R) ) {
 
@@ -195,6 +200,7 @@ kthreadB(void __attribute__ ((unused)) *arg) {
 			    SERV_NAME ":Can not access %p length: %d by tid=%d\n",
 			    pmsg->msg, pmsg->len, req_thr->tid);
 
+			release_all_thread_lock(&flags);
 			pmsg->rc = -EPERM;
 			rc = lpc_send(src, LPC_INFINITE, &msg);
 			kassert( rc == 0 );
@@ -202,11 +208,16 @@ kthreadB(void __attribute__ ((unused)) *arg) {
 		} else {
 			
 			kprintf(KERN_INF, "recv: %s", pmsg->msg);
+
+			release_all_thread_lock(&flags);
 			pmsg->rc = pmsg->len;
 			rc = lpc_send(src, LPC_INFINITE, &msg);
 			kassert( rc == 0 );
 			break;
 		}
+
+		release_all_thread_lock(&flags);
+
 	}
 
 	/*

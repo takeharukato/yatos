@@ -95,17 +95,24 @@ svc_thr_wait(tid wait_tid, thread_wait_flags user_wflags, tid *user_exit_tidp, e
 	wflags = ( user_wflags & 
 	    ( THR_WAIT_ANY | THR_WAIT_PROC | THR_WAIT_PGRP | THR_WAIT_ID | THR_WAIT_NONBLOCK) );
 
-	thr = thr_find_thread_by_tid(wait_tid);
-	if ( ( thr == NULL ) && ( wflags & THR_WAIT_ID ) )
+	acquire_all_thread_lock( &flags );
+	thr = thr_find_thread_by_tid_nolock(wait_tid);
+	if ( ( thr == NULL ) && ( wflags & THR_WAIT_ID ) ) {
+		
+		release_all_thread_lock(&flags);
 		return -ENOENT;
+	}
 
-	spinlock_lock_disable_intr( &thr->lock, &flags );
+	spinlock_lock( &thr->lock );
+
 	if ( ( thr->type == THR_TYPE_KERNEL) && ( wflags & THR_WAIT_ID ) ) {
 
 		rc = -EPERM;
 		goto unlock_out;
 	}
-	spinlock_unlock_restore_intr( &thr->lock, &flags );
+
+	spinlock_unlock( &thr->lock );
+	release_all_thread_lock(&flags);
 
 	rc = thr_wait(wait_tid, wflags, &chldtid, &code);
 	if ( rc != 0 )
@@ -122,7 +129,8 @@ svc_thr_wait(tid wait_tid, thread_wait_flags user_wflags, tid *user_exit_tidp, e
 	return 0;
 
 unlock_out:
-	spinlock_unlock_restore_intr( &thr->lock, &flags );
+	spinlock_unlock( &thr->lock );
+	release_all_thread_lock(&flags);
 
 error_out:
 	return rc;

@@ -7,7 +7,7 @@ top=..
 include ${top}/Makefile.inc
 CFLAGS += -I${top}/include
 subdirs-dist=templates
-subdirs=fsimg kconfig
+subdirs=kconfig
 
 all: kconfig/mconf
 

@@ -247,6 +247,7 @@ unlock_out:
 static int
 kname_service(void __attribute__ ((unused)) *arg) {
 	int                     rc;
+	intrflags            flags;
 	thread                *thr;
 	endpoint               src;
 	msg_body              rmsg;
@@ -268,10 +269,14 @@ kname_service(void __attribute__ ((unused)) *arg) {
 		rc = lpc_recv(LPC_RECV_ANY, LPC_INFINITE, &rmsg, &src);
 		kassert( rc == 0 );
 
-		thr = thr_find_thread_by_tid(src);
-		if ( thr == NULL ) 
-			continue;  /*  送信者が既に終了している  */
+		acquire_all_thread_lock( &flags );
 
+		thr = thr_find_thread_by_tid_nolock(src);
+		if ( thr == NULL ) {
+
+			release_all_thread_lock(&flags);
+			continue;  /*  送信者が既に終了している  */
+		}
 		/*
 		 * メッセージの内容をコピーする
 		 */
@@ -282,12 +287,14 @@ kname_service(void __attribute__ ((unused)) *arg) {
 		rc = vm_copy_in(&thr->p->vm, name, knmsg->name, len);
 		if ( rc == -EFAULT ) {
 
+			release_all_thread_lock(&flags);
 			/*  アクセスできない場合は, エラー情報を設定して返却  */
 			knmsg->rc = rc;
 			lpc_send(src, LPC_INFINITE, &rmsg);
 			continue;
 		}
 		name[len]='\0';
+		release_all_thread_lock(&flags);
 
 		switch( knmsg->req ) {
 			

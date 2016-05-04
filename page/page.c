@@ -56,22 +56,22 @@ show_free_pages(void) {
 	    (nr_free_pages << PAGE_SHIFT)  / 1024 / 1024);
 }
 
-/** ページフレーム番号から対応するページフレーム管理情報を探査する
+
+/** ページフレーム番号から対応するページフレーム管理情報を探査する(実処理部)
     @param[in] pfn   探索するページフレーム番号
     @param[in] pfip ページ領域のアドレスを返却するアドレス
     @retval  0       ページ領域を見つけた
     @retval -ENOENT  管理対象外のページフレーム番号を指定した
+    @note  HALなどから呼ばれる
  */
 static int
-pfn_to_page_frame_info(obj_cnt_type pfn, page_frame_info **pfip) {
+_pfn_to_page_frame_info_nolock(obj_cnt_type pfn, page_frame_info **pfip) {
 	int               rc;
-	intrflags      flags;
 	list             *li;
 	page_frame_info *pfi;
 
+	kassert( spinlock_locked_by_self(&global_pfque.lock) );	
 	kassert( pfip != NULL );
-
-	spinlock_lock_disable_intr(&global_pfque.lock, &flags);
 
 	for( li = queue_ref_top( &global_pfque.que );
 	     li != (list *)&global_pfque.que;
@@ -89,7 +89,27 @@ pfn_to_page_frame_info(obj_cnt_type pfn, page_frame_info **pfip) {
 	rc = -ENOENT;
 
 unlock_out:
+
+	return rc;
+}
+
+/** ページフレーム番号から対応するページフレーム管理情報を探査する
+    @param[in] pfn   探索するページフレーム番号
+    @param[in] pfip ページ領域のアドレスを返却するアドレス
+    @retval  0       ページ領域を見つけた
+    @retval -ENOENT  管理対象外のページフレーム番号を指定した
+ */
+static int
+pfn_to_page_frame_info(obj_cnt_type pfn, page_frame_info **pfip) {
+	int           rc;
+	intrflags  flags;
+
+	kassert( pfip != NULL );
+
+	spinlock_lock_disable_intr(&global_pfque.lock, &flags);
+	rc = _pfn_to_page_frame_info_nolock(pfn, pfip);
 	spinlock_unlock_restore_intr(&global_pfque.lock, &flags);
+
 	return rc;
 }
 
@@ -148,12 +168,16 @@ kcom_init_page_info(page_frame_info *pfi) {
 	/*
 	 * バディにべージを追加
 	 */	
+	spinlock_lock_disable_intr(&pfi->buddy.lock, &flags);
 	for(i = 0; i < pfi->nr_pages; ++i)  {
 
 		p = &pfi->array[i];
 		if ( !( p->state & PAGE_CSTATE_RESERVED ) )
-			page_buddy_enqueue(p->buddyp, p->pfn); 
+
+
+			page_buddy_enqueue(&pfi->buddy, p->pfn); 
 	}
+	spinlock_unlock_restore_intr(&pfi->buddy.lock, &flags);
 
 	show_free_pages();
 }
@@ -180,13 +204,28 @@ pfn_to_page_frame(obj_cnt_type pfn, page_frame  **pp) {
 	return 0;
 }
 
+/** ページフレーム番号に対応するページが登録されていることを確認する(ロック無し)
+    @param[in] pfn    探索するページフレーム番号
+    @retval    true   ページフレーム番号に対応するページが登録されている
+    @retval    false  ページフレーム番号に対応するページが登録されていない
+ */
+bool
+kcom_is_pfn_valid_nolock(obj_cnt_type pfn) {
+	int               rc;
+	page_frame_info *pfi;
+	
+	rc = _pfn_to_page_frame_info_nolock(pfn, &pfi);
+
+	return ( rc == 0 );
+}
+
 /** ページフレーム番号に対応するページが登録されていることを確認する
     @param[in] pfn    探索するページフレーム番号
     @retval    true   ページフレーム番号に対応するページが登録されている
     @retval    false  ページフレーム番号に対応するページが登録されていない
  */
 bool
-is_pfn_valid(obj_cnt_type pfn) {
+kcom_is_pfn_valid(obj_cnt_type pfn) {
 	int               rc;
 	page_frame_info *pfi;
 	

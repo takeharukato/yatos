@@ -22,13 +22,14 @@
 #define SPINLOCK_TYPE_NORMAL     (0x0)  /*< Non recursive lock  */
 #define SPINLOCK_TYPE_RECURSIVE  (0x1)  /*< Recursive lock      */
 
+struct _thread_info;
 typedef struct _spinlock {
-	uint32_t       locked;  /*  Is the lock held?                                */
-	uint32_t         type;  /*  lock type                                        */
-	uint32_t          cpu;  /*  The cpu holding the lock.                        */
-	uint32_t        depth;  /*  lock depth                                       */
-	struct _thread *owner;  /*  lock owner                                       */
-	uintptr_t backtrace[SPINLOCK_BT_DEPTH];       /*  back trace for debug       */
+	uint32_t            locked;  /*  Is the lock held?                                */
+	uint32_t              type;  /*  lock type                                        */
+	uint32_t               cpu;  /*  The cpu holding the lock.                        */
+	uint32_t             depth;  /*  lock depth                                       */
+	struct _thread_info *owner;  /*  lock owner thread info                           */
+	uintptr_t backtrace[SPINLOCK_BT_DEPTH];       /*  back trace for debug            */
 }spinlock;
 
 #define __SPINLOCK_INITIALIZER		 \

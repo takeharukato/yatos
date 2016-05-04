@@ -131,22 +131,31 @@ ev_has_pending_events(thread *thr){
  */
 int
 ev_send(tid dest, event_node *node) {
+	int               rc;
 	thread          *thr;
 	intrflags      flags;
 
 	kassert( node != NULL );
 
-	thr = thr_find_thread_by_tid(dest);
-	if ( thr == NULL )
-		return -ENOENT;
+	acquire_all_thread_lock( &flags );
 
-	if ( thr->type == THR_TYPE_KERNEL )
-		return -EPERM;
+	thr = thr_find_thread_by_tid_nolock(dest);
+	if ( thr == NULL ) {
+
+		rc = -ENOENT;
+		goto error_out;
+	}
+
+	if ( thr->type == THR_TYPE_KERNEL ) {
+
+		rc = -EPERM;
+		goto error_out;
+	}
 
 	kassert( node->info.no < EV_NR_EVENT);
 	kassert( !check_recursive_locked( &thr->evque.lock ) );	
 
-	spinlock_lock_disable_intr( &thr->evque.lock, &flags);
+	spinlock_lock( &thr->evque.lock );
 
 	ev_mask_set( &thr->evque.events, node->info.no );
 	queue_add( &thr->evque.que[node->info.no], &node->link );
@@ -156,9 +165,16 @@ ev_send(tid dest, event_node *node) {
 		_sched_wakeup(thr);
 	}
 
-	spinlock_unlock_restore_intr( &thr->evque.lock, &flags );	
+	spinlock_unlock( &thr->evque.lock);
+
+	release_all_thread_lock(&flags);
 	
 	return 0;
+
+error_out:
+	release_all_thread_lock(&flags);
+
+	return rc;
 }
 
 /** イベントを取り出す

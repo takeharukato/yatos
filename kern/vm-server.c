@@ -42,18 +42,25 @@ static thread *vm_service_thr;
  */
 static int
 handle_sbrk(vm_sys_sbrk *sbrk,endpoint src) {
-	int          rc;
-	thread     *thr;
-	void   *cur_end;
-	void   *new_end;
+	int            rc;
+	thread       *thr;
+	void     *cur_end;
+	void     *new_end;
+	intrflags   flags;
 
-	thr = thr_find_thread_by_tid(src);
-	if ( thr == NULL ) 
-		return -ENOENT;
+	acquire_all_thread_lock( &flags );
+
+	thr = thr_find_thread_by_tid_nolock(src);
+	if ( thr == NULL ) {
+
+		rc = -ENOENT;
+		goto unlock_out;
+	}
 
 	rc = proc_expand_heap(thr->p, NULL, &cur_end);
-	if ( rc != 0 )
-		return rc;
+
+	if ( rc != 0 ) 
+		goto unlock_out;
 
 	if ( sbrk->inc == 0 ) {
 		
@@ -65,18 +72,27 @@ handle_sbrk(vm_sys_sbrk *sbrk,endpoint src) {
 		( (void *)( cur_end + sbrk->inc ) )  :
 		( (void *)PAGE_NEXT( (uintptr_t)(cur_end + sbrk->inc) ) );
 
-	if ( new_end < thr->p->heap->start )
-		return -EINVAL;
+	if ( new_end < thr->p->heap->start ) {
+	
+		rc = -EINVAL;
+		goto unlock_out;
+	}
 
 	rc = proc_expand_heap(thr->p, new_end, &cur_end);
-	if ( rc != 0 )
-		return rc;
+	if ( rc != 0 ) 
+		goto unlock_out;
 
 success_out:
+	release_all_thread_lock(&flags);
+
 	if ( rc == 0 ) 
 		sbrk->old_heap_end = cur_end;
 
 	return 0;
+
+unlock_out:
+	release_all_thread_lock(&flags);
+	return rc;
 }
 
 /** プロセスサービス処理部
