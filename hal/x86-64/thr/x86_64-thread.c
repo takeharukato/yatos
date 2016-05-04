@@ -148,7 +148,7 @@ hal_fpu_context_switch(thread *thr_prev, thread __attribute__ ((unused)) *thr_ne
                 /*
 		 * FPUを使用していた場合はFPUコンテキストを保存する  
 		 */
-		x86_64_fxsave( &thr_prev->fpctx );
+		x86_64_fpuctx_save( &thr_prev->fpctx );
 		ti->arch_flags &= ~TI_X86_64_FPU_USED;  /*  FPU使用フラグをクリアする  */
 	}
 	x86_64_enable_fpu_task_switch(); /* 次回FPU命令使用時に例外を発生  */

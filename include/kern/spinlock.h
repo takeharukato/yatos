@@ -28,7 +28,6 @@ typedef struct _spinlock {
 	uint32_t          cpu;  /*  The cpu holding the lock.                        */
 	uint32_t        depth;  /*  lock depth                                       */
 	struct _thread *owner;  /*  lock owner                                       */
-	uint64_t          pad;  /*  pad                                              */
 	uintptr_t backtrace[SPINLOCK_BT_DEPTH];       /*  back trace for debug       */
 }spinlock;
 

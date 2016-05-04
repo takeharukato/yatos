@@ -43,7 +43,7 @@ _x86_64_return_from_event_handler(event_frame *user_ef, trap_context *ctx) {
 	memcpy( ctx, &ef.trap_ctx, sizeof(trap_context) );
 	/*  FPU コンテキストを復元  */
 	if ( current->ti->arch_flags & TI_X86_64_FPU_USED )
-		x86_64_fxrestore( &ef.fpu_frame ); 
+		x86_64_fpuctx_restore( &ef.fpu_frame ); 
 	else
 		memcpy( &current->fpctx, &ef.fpu_frame, sizeof(fpu_context) ); 
 	return;
@@ -115,7 +115,7 @@ x86_64_setup_event_handler(trap_context *ctx) {
 
 	/*  FPUコンテキストをコピー  */
 	if ( current->ti->arch_flags & TI_X86_64_FPU_USED )
-		x86_64_fxsave( &ef.fpu_frame );
+		x86_64_fpuctx_save( &ef.fpu_frame );
 	else
 		memcpy( &ef.fpu_frame,  &current->fpctx, sizeof(fpu_context) ); 
 

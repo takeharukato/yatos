@@ -141,13 +141,14 @@ typedef struct _fpu_context{
 	uint64_t mmx_resv12_high;
 	uint64_t  mmx_resv13_low;
 	uint64_t mmx_resv13_high;
-} __attribute__((packed))  __attribute__((aligned(16))) fpu_context;
+} __attribute__((packed))  fpu_context;
 
 
 typedef struct _x86_64_cpu{
 	void              *gdtp;
 	void              *tssp;
 	uint64_t     tsc_per_us;
+	fpu_context __attribute__((aligned(16))) fpuctxbuf;
 }x86_64_cpu;
 
 #define __X86_64_CPU_INITIALIZER    \
@@ -155,6 +156,7 @@ typedef struct _x86_64_cpu{
 	.gdtp = NULL,		    \
 	.tssp = NULL,	            \
 	.tsc_per_us = 0,            \
+	.fpuctxbuf = {0,},          \
 	}
 
 static inline void
@@ -174,8 +176,8 @@ rdmsr(uint32_t msr_id) {
 
 struct _cpu;
 void arch_setup_cpuinfo(int _cpuid, struct _cpu *_c);
-void x86_64_fxsave(void *_m);
-void x86_64_fxrestore(void *_m);
+void x86_64_fpuctx_save(void *_dest);
+void x86_64_fpuctx_restore(void *_src);
 void x86_64_enable_fpu_task_switch(void);
 void x86_64_disable_fpu_task_switch(void);
 #endif  /*  !ASM_FILE  */

@@ -22,6 +22,8 @@
 #include <kern/page.h>
 
 extern void x86_64_prepare(uint64_t _magic, uint64_t _mbaddr);
+extern void x86_64_fxsave(void *_m);
+extern void x86_64_fxrestore(void *_m);
 
 static proc kproc;
 static x86_64_cpu acpus[NR_CPUS] = {__X86_64_CPU_INITIALIZER,};
@@ -68,6 +70,39 @@ x86_64_init_kernel_proc(void *kpgtbl) {
 
 	spinlock_init(&p->lock);
 	queue_init(&p->threads);
+}
+
+/** FPUコンテキストをCPUから取得する
+    @param[in] dest FPUコンテキスト出力先アドレス
+    @note fxsave/fxrstor命令は16バイト境界の領域にしか書き込めないので
+    16バイト境界の一時バッファに保存してからコピーしている
+ */
+void
+x86_64_fpuctx_save(void *dest) {
+	x86_64_cpu   *ac;
+
+	kassert( current_cpu() < NR_CPUS );
+
+	ac = &acpus[current_cpu()];
+	x86_64_fxsave( &ac->fpuctxbuf );
+	memcpy(dest, &ac->fpuctxbuf, sizeof(fpu_context));
+}
+/** FPUコンテキストを復元する
+    @param[in] dest FPUコンテキスト入力元アドレス
+    @note fxsave/fxrstor命令は16バイト境界の領域にしか書き込めないので
+    16バイト境界の一時バッファに保存してからコピーしている
+ */
+void
+x86_64_fpuctx_restore(void *src) {
+	x86_64_cpu   *ac;
+
+	kassert( current_cpu() < NR_CPUS );
+	kassert( src != NULL );
+
+	ac = &acpus[current_cpu()];
+
+	memcpy(&ac->fpuctxbuf, src, sizeof(fpu_context));
+	x86_64_fxrestore( &ac->fpuctxbuf );
 }
 
 /** udelayの設定値を格納する

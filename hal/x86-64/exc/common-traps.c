@@ -326,7 +326,7 @@ device_not_available(trap_context __attribute__ ((unused)) *ctx) {
 	ti = ti_get_current_tinfo();
 	x86_64_disable_fpu_task_switch(); /*  スレッド切り替えまで例外抑止  */
 	ti->arch_flags |= TI_X86_64_FPU_USED;
-	x86_64_fxrestore( &current->fpctx ); /*  FPUコンテキストを復元する  */
+	x86_64_fpuctx_restore( &current->fpctx ); /*  FPUコンテキストを復元する  */
 }
 
 static void
