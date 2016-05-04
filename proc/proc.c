@@ -466,6 +466,10 @@ proc_create(proc **procp, thr_prio prio, char *cmdline, const char *environ[], v
 
 	/*
 	 * プロセスのスタック領域に書き込むために一時的にアドレス空間を切り替える
+	 * @note  vm_copy_in/vm_copy_outを使用すると文字列解析のため一時文字ずつコピー
+	 * するかカーネル内のバッファにコピーした結果を転送することになるため,
+	 * 他プロセスのTLBがフラッシュされる欠点があるが, アドレス空間を切り替えて, 
+	 * ポインタ操作を行うことで, 処理ロジックを単純化する設計方針を採用。
 	 */
 	hal_switch_address_space( current->p,  p);
 	/*   ユーザプロセス引数の設定  */
