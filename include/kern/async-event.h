@@ -22,13 +22,12 @@
 #include <kern/queue.h>
 #include <kern/async-event.h>
 
-#include <hal/asm-offset.h>
 #include <hal/traps.h>
 #include <hal/arch-cpu.h>
 
-#define EV_NR_EVENT  (128)                                     /*<  128イベント         */
-#define EV_MAP_LEN   ( EV_NR_EVENT / ( EV_BITMAP_SIZE * 8 ) )  /*<  ビットマップ配列長  */
-#define EV_RESERVED  (0)                                       /*<  0番は予約           */
+#define EV_NR_EVENT  (128)                        /*<  128イベント                           */
+#define EV_MAP_LEN   ( EV_NR_EVENT / 64 )         /*<  ビットマップ配列長(uint64_t配列の数)  */
+#define EV_RESERVED  (0)                          /*<  0番は予約                             */
 
 #define EV_SIG_HUP      (1)
 #define EV_SIG_INT      (2)

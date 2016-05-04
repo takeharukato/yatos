@@ -13,6 +13,7 @@
 #define __IN_ASM_OFFSET 1
 #include <kern/kern_types.h>
 #include <kern/page.h>
+#include <kern/thread.h>
 #include <kern/thread-info.h>
 #include <hal/traps.h>
 
@@ -36,6 +37,8 @@ main(int  __attribute__ ((unused)) argc, char  __attribute__ ((unused)) *argv[])
 	OFFSET(CTX_RFLAGS_OFFSET, _trap_context, rflags);
 	OFFSET(CTX_RSP_OFFSET, _trap_context, rsp);
 	OFFSET(CTX_SS_OFFSET, _trap_context, ss);
+
+	OFFSET(THR_FPCTX_OFFSET, _thread, fpctx);
 
 	DEFINE_SIZE(PAGE_FRAME_SIZE, sizeof(struct _page_frame));
 

@@ -29,4 +29,5 @@
 #define KM_DEFAULT_LIMIT        (10)      /*< slabキャッシュの規定キャッシュオブジェクト数 */
 #define DEFAULT_L1_CACHE_BYTE   (64)      /*< L1キャッシュサイズの規定バイト数             */
 #define BACKTRACE_MAX_DEPTH     (20)      /*< バックトレースの最大深度                     */
+#define SPINLOCK_BT_DEPTH       (BACKTRACE_MAX_DEPTH)  /*< スピンロック中のバックトレース保存量 */
 #endif  /*  _KERN_PARAM_H   */

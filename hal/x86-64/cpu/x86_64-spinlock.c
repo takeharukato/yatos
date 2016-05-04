@@ -45,15 +45,17 @@ hal_spinlock_unlock(spinlock *lock) {
     @param[in] lock 獲得対象のスピンロック
  */
 void 
-hal_spinlock_lock(spinlock __attribute__ ((unused)) *lock) {
+hal_spinlock_lock(spinlock *lock) {
 
+	lock->locked = 1;
 }
 
 /** スピンアンロックの実装部(ユニプロセッサ版)
     @param[in] lock 解放対象のスピンロック
  */
 void 
-hal_spinlock_unlock(spinlock __attribute__ ((unused)) *lock) {
+hal_spinlock_unlock(spinlock *lock) {
 
+	lock->locked = 0;
 }
 #endif  /*  CONFIG_SMP  */

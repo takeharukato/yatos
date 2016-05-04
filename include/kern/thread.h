@@ -111,7 +111,7 @@ typedef struct _thread{
 	thread_type                type;  /*< スレッド種別                                  */
 	kstack_type                 ksp;  /*< カーネルスタックの先頭アドレス                */
 	kstack_type            last_ksp;  /*< 最後にディスパッチしたときのスタックポインタ  */
-	fpu_context               fpctx;  /*< FPUのコンテキスト情報                         */
+	fpu_context               fpctx;  /*< FPUのコンテキスト情報(16バイトアライン)       */
 	msg_queue                  mque;  /*< メッセージキュー                              */
 	event_queue               evque;  /*< イベントキュー                                */
 }thread;

@@ -19,21 +19,26 @@
 #include <kern/kern_types.h>
 #include <kern/backtrace.h>
 
-#define KERN_SPINLOCK_BT_DEPTH    (20)  /*< スピンロック中のバックトレース保存量
-					 * (3エントリはspinlock関連関数で消費)
-					 */
+#define SPINLOCK_TYPE_NORMAL     (0x0)  /*< Non recursive lock  */
+#define SPINLOCK_TYPE_RECURSIVE  (0x1)  /*< Recursive lock      */
 
 typedef struct _spinlock {
-	uint32_t locked;   /* Is the lock held?                                 */
-	uint32_t    pad;   /*  padding                                          */
-	uint32_t    cpu;   /*   The cpu holding the lock.                       */
-	uintptr_t backtrace[KERN_SPINLOCK_BT_DEPTH];  /*  back trace for debug  */
+	uint32_t       locked;  /*  Is the lock held?                                */
+	uint32_t         type;  /*  lock type                                        */
+	uint32_t          cpu;  /*  The cpu holding the lock.                        */
+	uint32_t        depth;  /*  lock depth                                       */
+	struct _thread *owner;  /*  lock owner                                       */
+	uint64_t          pad;  /*  pad                                              */
+	uintptr_t backtrace[SPINLOCK_BT_DEPTH];       /*  back trace for debug       */
 }spinlock;
 
 #define __SPINLOCK_INITIALIZER		 \
 	{				 \
 		.locked = 0,		 \
+		.type  = SPINLOCK_TYPE_NORMAL , \
 		.cpu    = 0,             \
+		.depth  = 0,             \
+		.owner  = NULL,          \
 	}
 
 void spinlock_init(spinlock *_lock);
