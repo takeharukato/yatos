@@ -113,11 +113,11 @@ pfn_to_page_frame_info(obj_cnt_type pfn, page_frame_info **pfip) {
 	return rc;
 }
 
-/** ページ情報を初期化する
+/** ページ情報を追加し, 初期化する
     @param[in] pfi HALから渡されたメモリ領域のページフレーム管理情報
  */
 void
-kcom_init_page_info(page_frame_info *pfi) {
+kcom_add_page_info(page_frame_info *pfi) {
 	obj_cnt_type   i;
 	page_frame    *p;
 	intrflags  flags;

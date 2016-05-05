@@ -70,17 +70,19 @@ x86_64_prepare(uint64_t __attribute__ ((unused)) magic,
 
 	kprintf(KERN_INF, "Initialize...\n");
 
-	parse_multiboot2_info(magic, mbaddr, info);
+	x86_64_parse_multiboot2_info(magic, mbaddr, info);
 
 	max_mem = info->mem_upper_kb * 1024UL;
 
-	remap_kernel(info, max_mem - 1);
+	x86_64_boot_map_kernel(info);
 
-	alloc_page_info(info, &pfi, 0, max_mem);
+	x86_64_alloc_page_info(info, &pfi, 0, max_mem);
 
-	kcom_init_page_info(pfi);
+	kcom_add_page_info(pfi);
 
-	boot_acpiinit(info);
+	x86_64_remap_kernel(info);
+
+	x86_64_boot_acpiinit(info);
 
 	x86_64_init_cpus(info->kpgtbl);
 

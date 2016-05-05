@@ -59,7 +59,7 @@ find_rdsp(void) {
 } 
 
 int
-boot_acpiinit(karch_info *info) {
+x86_64_boot_acpiinit(karch_info *info) {
 	unsigned int                               n, count;
 	struct acpi_rdsp                              *rdsp;
 	struct acpi_rsdt                              *rsdt;
@@ -97,7 +97,7 @@ boot_acpiinit(karch_info *info) {
 		}
 	}
 
-	kprintf(KERN_ERR, "boot-acpi: tables above 0x%x not mapped.\n", KERN_PHY_MAX );	
+	kprintf(KERN_ERR, "boot-acpi: tables not mapped.\n");	
 	return -1;
 
 success_out:

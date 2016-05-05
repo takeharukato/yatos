@@ -46,13 +46,14 @@ check_page_reserved(karch_info *info, uintptr_t paddr) {
 		return 1; /* memory mapped device  */
 	}
 
-	if ( ( info->kpgtbl_start <= paddr ) && 
+	if ( ( info->boot_kpgtbl_start <= paddr ) && 
 	    ( paddr < ( (uintptr_t)KERN_STRAIGHT_TO_PHY(info->kpgtbl) + PAGE_SIZE ) ) ) {
 
 		return 1; /* kernel page table */
 	}
 
-	if ( ( (uintptr_t)&_kernel_start <= paddr ) && ( paddr < (uintptr_t)&_kernel_end) ) {
+	if ( (  KERN_STRAIGHT_PAGE_START( (uintptr_t)&_kernel_start )  <= paddr ) &&
+	    ( paddr < KERN_STRAIGHT_PAGE_END((uintptr_t)&_kernel_end) ) ) {
 
 		return 1; /* kernel page  */
 	}
@@ -137,7 +138,7 @@ hal_is_pfn_reserved(obj_cnt_type pfn) {
     @note HALの初期化処理から呼ばれる
  */
 void
-alloc_page_info(karch_info __attribute__ ((unused))  *info, page_frame_info **pfip, 
+x86_64_alloc_page_info(karch_info __attribute__ ((unused))  *info, page_frame_info **pfip, 
     uintptr_t min_paddr, uintptr_t max_paddr) {
 	page_frame       *array;
 	page_frame_info    *pfi;

@@ -17,21 +17,35 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define PAGE_ALIGNED(addr)			\
-	( ( (uintptr_t)( ( (uintptr_t)addr ) &  ( (uintptr_t)(PAGE_SIZE) - (uintptr_t)1 ) ) ) == 0 )
+#define PAGE_ALIGNED(addr)						\
+	( ( (uintptr_t)( ( (uintptr_t)(addr) ) &			\
+		( (uintptr_t)(PAGE_SIZE) - (uintptr_t)1 ) ) ) == 0 )
 
-#define PAGE_START(addr)			\
-	( (uintptr_t)( ( (uintptr_t)addr ) &  ~( (uintptr_t)(PAGE_SIZE) - (uintptr_t)1 ) ) )
+#define PAGE_START(addr)					\
+	( (uintptr_t)( ( (uintptr_t)(addr) ) &			\
+	    ~( (uintptr_t)(PAGE_SIZE) - (uintptr_t)1 ) ) )
 
 #define PAGE_NEXT(addr)				\
-	( (uintptr_t)( PAGE_START(addr) + (uintptr_t)PAGE_SIZE ) )
+	( (uintptr_t)( PAGE_START( (addr) ) +	\
+	(uintptr_t)PAGE_SIZE ) )
 
-#define PAGE_END(addr)				\
-	( (uintptr_t)( PAGE_NEXT(addr) - 1 ) )
+#define PAGE_END(addr)					\
+	( (uintptr_t)( PAGE_NEXT( (addr) ) - 1 ) )
 
-#define KERN_STRAIGHT_PAGE_START(addr)	     \
-	( (uintptr_t)( ( (uintptr_t)addr) &  \
+#define KERN_STRAIGHT_PAGE_ALIGNED(addr)						\
+	( ( (uintptr_t)( ( (uintptr_t)(addr) ) &			\
+		( (uintptr_t)(KERN_STRAIGHT_PAGE_SIZE) - (uintptr_t)1 ) ) ) == 0 )
+
+#define KERN_STRAIGHT_PAGE_START(addr)					\
+	( (uintptr_t)( ( (uintptr_t)(addr) ) &				\
 	    ~( (uintptr_t)(KERN_STRAIGHT_PAGE_SIZE) - (uintptr_t)1 ) ) )
+
+#define KERN_STRAIGHT_PAGE_NEXT(addr)			  \
+	( (uintptr_t)KERN_STRAIGHT_PAGE_START( (addr) ) + \
+	    (uintptr_t)(KERN_STRAIGHT_PAGE_SIZE) )
+
+#define KERN_STRAIGHT_PAGE_END(addr)		\
+	( KERN_STRAIGHT_PAGE_NEXT((addr)) - 1 )
 
 #endif  /*  !ASM_FILE  */
 

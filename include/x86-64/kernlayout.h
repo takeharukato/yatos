@@ -17,7 +17,7 @@
 #define KERN_HIGH_MEMORY_BASE     (0x100000000)
 #define KERN_PHY_BASE             (0x0000000000000000)
 #define KERN_KPGTBL_MAX           (0x9F000)
-#define KERN_PHY_MAX              (0x1000000000) 
+#define KERN_PHY_MAX              (0x20000000000)
 
 #define KERN_VMA_BASE             (0xFFFF800000000000)                                 
 #define KERN_HIGH_IO_BASE         (0xFFFFFFFFFC000000)

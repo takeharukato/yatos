@@ -6,7 +6,7 @@
 top=../../..
 include ${top}/Makefile.inc
 CFLAGS += -I${top}/include
-objects=kmap.o page-pool.o pgtbl.o
+objects=boot-kernel-map.o kernel-map.o page-pool.o pgtbl.o
 lib=libhal-mm.a
 
 all:${lib} ${boot_objects}

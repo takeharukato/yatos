@@ -54,7 +54,7 @@ typedef struct _page_frame{
 	struct _slab          *slabp;
 }page_frame;
 
-void kcom_init_page_info(struct _page_frame_info *_pfi);
+void kcom_add_page_info(struct _page_frame_info *_pfi);
 int alloc_buddy_pages(void **_addrp, page_order _order, pgalloc_flags _pgflags);
 void free_buddy_pages(void *_addr);
 int get_free_page(void **_addrp);

@@ -59,7 +59,7 @@ hal_load_system_procs(void) {
     @param[in] info   HALのブート情報格納先アドレス
  */
 void
-parse_multiboot2_info(uint64_t magic, uint64_t mbaddr, karch_info *info){
+x86_64_parse_multiboot2_info(uint64_t magic, uint64_t mbaddr, karch_info *info){
 	struct multiboot_tag     *tag;
 	multiboot_memory_map_t  *mmap;
 	grub_mod                 *mod;
@@ -69,6 +69,8 @@ parse_multiboot2_info(uint64_t magic, uint64_t mbaddr, karch_info *info){
 	info->nr_resv = 0;
 	info->nr_ram  = 0;
 	info->nr_mod  = 0;
+	info->phy_mem_min = 0;
+	info->phy_mem_max = 0;
 
 	if ( magic != MULTIBOOT2_BOOTLOADER_MAGIC ) {
 
@@ -186,10 +188,35 @@ parse_multiboot2_info(uint64_t magic, uint64_t mbaddr, karch_info *info){
 					if ( info->nr_ram == HAL_MAX_RAM_AREA )
 						continue;
 
+					/* 3GiBまでのページプールを利用して作成した
+					 * ページテーブルで, マップ可能な範囲
+					 * (余裕を見てメモリ上限2TiB(KERN_PHY_MAX))
+					 * を越える場合は, KERN_PHY_MAXまでに
+					 * 使用可能領域を制限する
+					 */
+
+					/* 開始アドレスが, KERN_PHY_MAXを越える場合は
+					 * その領域を無視する
+					 */
+					if ( mmap->addr >= KERN_PHY_MAX )
+						continue;
+
 					ram = &info->ram_area[info->nr_ram];
 					ram->type = mmap->type;
 					ram->start = mmap->addr;
 					ram->end = mmap->addr + mmap->len;
+					
+					/* 末尾がKERN_PHY_MAXを越える場合は
+					 * KERN_PHY_MAXまでに制限する
+					 */
+					if (ram->end >= KERN_PHY_MAX )
+						ram->end = KERN_PHY_MAX;
+
+					if ( info->phy_mem_min > ram->start )
+						info->phy_mem_min  = ram->start;
+
+					if ( info->phy_mem_max < ram->end )
+						info->phy_mem_max  = ram->end;
 					++info->nr_ram;	
 				}
 			}

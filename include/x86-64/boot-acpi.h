@@ -82,6 +82,6 @@ struct madt_ioapic {
 } __attribute__((__packed__));
 
 struct _karch_info;
-int boot_acpiinit(struct _karch_info *info);
+int x86_64_boot_acpiinit(struct _karch_info *info);
 
 #endif  /*  _HAL_BOOT_ACPI_H   */
