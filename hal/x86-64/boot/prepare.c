@@ -61,8 +61,6 @@ void
 x86_64_prepare(uint64_t __attribute__ ((unused)) magic, 
     uint64_t __attribute__ ((unused)) mbaddr) {
 	karch_info  *info = (karch_info *)&boot_info;
-	uintptr_t  max_mem;
-	page_frame_info *pfi;
 
 	bss_init();
 	init_kconsole();
@@ -72,13 +70,9 @@ x86_64_prepare(uint64_t __attribute__ ((unused)) magic,
 
 	x86_64_parse_multiboot2_info(magic, mbaddr, info);
 
-	max_mem = info->mem_upper_kb * 1024UL;
-
 	x86_64_boot_map_kernel(info);
 
-	x86_64_alloc_page_info(info, &pfi, 0, max_mem);
-
-	kcom_add_page_info(pfi);
+	x86_64_alloc_page_info(info->phy_mem_min, info->mem_upper_kb * 1024UL);
 
 	x86_64_remap_kernel(info);
 

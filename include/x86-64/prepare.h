@@ -69,8 +69,7 @@ typedef struct _karch_info{
 struct _page_frame_info;
 void x86_64_boot_map_kernel(karch_info *_info);
 void x86_64_parse_multiboot2_info(uint64_t _magic, uint64_t _mbaddr, karch_info *_info);
-void x86_64_alloc_page_info(karch_info *_info, struct _page_frame_info **_pfi, 
-    uintptr_t _min_paddr, uintptr_t _max_paddr);
+void x86_64_alloc_page_info(uintptr_t _min_paddr, uintptr_t _max_paddr);
 void x86_64_remap_kernel(karch_info *_info);
 karch_info  *_refer_boot_info(void);
 #endif  /*  _HAL_PREPARE_H   */

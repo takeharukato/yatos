@@ -131,15 +131,12 @@ hal_is_pfn_reserved(obj_cnt_type pfn) {
 }
 
 /** ページフレーム情報の配列の領域を確保する
-    @param[in] info アーキ依存のブート処理情報
-    @param[in,out] pfip ページフレーム情報配置先の返却アドレス
     @param[in] min_paddr 最小物理メモリアドレス
     @param[in] max_paddr 最大物理メモリアドレス
     @note HALの初期化処理から呼ばれる
  */
 void
-x86_64_alloc_page_info(karch_info __attribute__ ((unused))  *info, page_frame_info **pfip, 
-    uintptr_t min_paddr, uintptr_t max_paddr) {
+x86_64_alloc_page_info(uintptr_t min_paddr, uintptr_t max_paddr) {
 	page_frame       *array;
 	page_frame_info    *pfi;
 	obj_cnt_type   nr_pages;
@@ -172,6 +169,6 @@ x86_64_alloc_page_info(karch_info __attribute__ ((unused))  *info, page_frame_in
 	pfi->max_pfn = ( KERN_STRAIGHT_TO_PHY((uintptr_t)pfi) >> PAGE_SHIFT );
 	pfi->nr_pages = nr_pages;
 
-	*pfip = pfi;
+	kcom_add_page_info(pfi);
 }
 
