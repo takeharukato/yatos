@@ -337,19 +337,11 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 		sched_schedule();  /*  休眠実施  */			
 
 	res = _sync_finish_wait( &new_msg->completion, &blk);
-	if ( res == SYNC_OBJ_DESTROYED ) {  /* メッセージ破棄による起床  */
+	if ( res == SYNC_OBJ_DESTROYED )   /* メッセージ破棄による起床  */
+		return  -ENOENT;
 
-		rc = -ENOENT;
-		goto unlock_out;
-	}
-
-	if ( res == SYNC_WAI_DELIVEV ) {
-		
-		/*  イベント受信による起床
-		 */
-		rc = -EINTR;
-		goto unlock_out;
-	}
+	if ( res == SYNC_WAI_DELIVEV )
+		return -EINTR;  /*  イベント受信による起床  */
 
 	return 0;
 
