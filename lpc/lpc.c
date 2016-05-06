@@ -255,16 +255,16 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
                                 /*  スレッド破棄に伴ってキューが消失
 				 *  するためメモリだけ解放して抜ける
 				 */
-				lpc_msg_free(new_msg);
-				return -ENOENT;  
+				rc = -ENOENT;
+				goto msg_free_nolock_out;
 			}
 
 			if ( res == SYNC_WAI_DELIVEV ) {
 
                                 /*  イベント受信時は, メモリを解放して抜ける
 				 */
-				lpc_msg_free(new_msg);
-				return -EINTR;  
+				rc = -EINTR;
+				goto msg_free_nolock_out;
 			}
 
 			spinlock_lock( &q->lock );
@@ -284,24 +284,24 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
                                 /*  スレッド破棄に伴ってキューが消失
 				 *  するためメモリだけ解放して抜ける
 				 */
-				lpc_msg_free(new_msg);
-				return -ENOENT;  
+				rc = -ENOENT;
+				goto msg_free_nolock_out;
+
 			}
 
 			if ( res == SYNC_WAI_TIMEOUT ) {
 				
-				lpc_msg_free(new_msg);
-				return -EAGAIN;
+				rc = -EAGAIN;
+				goto msg_free_nolock_out;
 			}
 
 			if ( res == SYNC_WAI_DELIVEV ) {
 
                                 /*  イベント受信時は, メモリを解放して抜ける
 				 */
-				lpc_msg_free(new_msg);
-				return -EINTR;  
+				rc = -EINTR;
+				goto msg_free_nolock_out;
 			}
-
 
 			acquire_all_thread_lock( &flags );
 			thr = thr_find_thread_by_tid_nolock(dest);
@@ -353,13 +353,17 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 
 	return 0;
 
-msg_free_out:
-	lpc_msg_free(new_msg);
-
 unlock_out:
 	spinlock_unlock( &q->lock );
-	release_all_thread_lock(&flags);
+	return rc;
 
+msg_free_out:
+	lpc_msg_free(new_msg);
+	spinlock_unlock( &q->lock );
+	return rc;
+
+msg_free_nolock_out:
+	lpc_msg_free(new_msg);
 	return rc;
 }
 
