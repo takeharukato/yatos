@@ -355,8 +355,33 @@ segment_not_present(trap_context *ctx) {
 
 static void
 stack_segment(trap_context *ctx) {
+	int           rc;
+	event_node *node;
 
-	handle_error_exception(ctx);
+	if ( hal_is_intr_from_user(ctx) ) {
+
+		kassert(current->type == THR_TYPE_USER);
+
+		rc = ev_alloc_node(EV_SIG_SEGV, &node);
+		if ( rc != 0 ) 
+			goto exit_out;
+
+		node->info.code = EV_CODE_SEGV_ACCERR;
+		node->info.trap = ctx->trapno;
+		node->info.err = ctx->errno;
+
+		rc = ev_send(current->tid, node);
+		if ( rc != 0 )
+			goto exit_out;
+	} else {
+
+		handle_error_exception(ctx);
+	}
+
+	return;
+
+exit_out:
+	x86_64_trap_exit(ctx);
 }
 
 static void
