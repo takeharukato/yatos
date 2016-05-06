@@ -48,6 +48,8 @@ dbg_console_thread(void __attribute__ ((unused)) *arg) {
 	    current->tid, current);
 #endif  /*  DEBUG_DBG_CON  */
 
+	/* デバッグ用コンソールサービスをカーネル内のネームサービスに登録
+	 */
 	rc = kns_register_kernel_service(ID_RESV_NAME_DBG_CONSOLE);
 	kassert( rc == 0 );
 #if defined(DEBUG_DBG_CON)
@@ -57,6 +59,8 @@ dbg_console_thread(void __attribute__ ((unused)) *arg) {
 
 	while(1) {
 
+		/* メッセージを受信
+		 */
 		memset( &msg, 0, sizeof(msg_body) );
 		pmsg  = &msg.sys_pri_dbg_msg;
 
@@ -68,8 +72,10 @@ dbg_console_thread(void __attribute__ ((unused)) *arg) {
 		    rc, src, pmsg->msg, pmsg->len);
 #endif  /*  DEBUG_DBG_CON  */
 
+		/* 送信者スレッドを取得
+		 */
 		acquire_all_thread_lock( &flags );
-
+		
 		req_thr = thr_find_thread_by_tid_nolock(src);
 		if ( req_thr == NULL ) {
 
@@ -81,6 +87,8 @@ dbg_console_thread(void __attribute__ ((unused)) *arg) {
 			continue;
 		}
 
+		/* 送信データ領域の妥当性を確認
+		 */
 		if ( !vm_user_area_can_access(&req_thr->p->vm, pmsg->msg, pmsg->len,
 			VMA_PROT_R) ) {
 
@@ -92,7 +100,9 @@ dbg_console_thread(void __attribute__ ((unused)) *arg) {
 
 			release_all_thread_lock(&flags);
 
-			pmsg->rc = -EPERM;
+			/* 領域外アクセスで復帰
+			 */
+			pmsg->rc = -EFAULT;
 			rc = lpc_send(src, LPC_INFINITE, &msg);
 			kassert( rc == 0 );
 			continue;
@@ -109,6 +119,8 @@ dbg_console_thread(void __attribute__ ((unused)) *arg) {
 
 		release_all_thread_lock(&flags);
 
+		/* 送信メッセージ長を返却
+		 */
 		pmsg->rc = pmsg->len;
 		rc = lpc_send(src, LPC_INFINITE, &msg);
 		kassert( rc == 0 );
