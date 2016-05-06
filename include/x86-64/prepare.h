@@ -30,15 +30,15 @@
 #define HAL_MAX_RAM_AREA       (3)
 
 typedef struct _grub_mod{
-	char param[HAL_MB_PARAM_LEN];
-	uintptr_t start;
-	uintptr_t end;
+	char      param[HAL_MB_PARAM_LEN];
+	uintptr_t                   start;
+	uintptr_t                     end;
 }grub_mod;
 
 typedef struct _memory_area{
-	uint32_t  type;
+	uint32_t   type;
 	uintptr_t start;
-	uintptr_t end;
+	uintptr_t   end;
 }memory_area;
 
 /** OSのブート時に必要な情報

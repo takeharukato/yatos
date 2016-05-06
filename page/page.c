@@ -26,8 +26,12 @@
 
 static page_frame_queue global_pfque = __PF_QUEUE_INITIALIZER( &global_pfque.que );
 
-static void
-show_free_pages(void) {
+/** 総メモリ量と空きメモリ量を取得する
+    @param[in] nr_pages_p      総メモリ量返却先（単位:ページ数)
+    @param[in] nr_free_pages_p 空きメモリ量返却先（単位:ページ数)
+ */
+void
+kcom_refer_free_pages(obj_cnt_type *nr_pages_p, obj_cnt_type *nr_free_pages_p) {
 	page_frame_info   *pfi;
 	uint64_t nr_free_pages;
 	uint64_t      nr_pages;
@@ -50,10 +54,8 @@ show_free_pages(void) {
 
 	spinlock_unlock_restore_intr(&global_pfque.lock, &flags);
 
-	kprintf(KERN_INF, "page-pool: %d/%d free pages(%d MiB)\n", 
-	    nr_free_pages, 
-	    nr_pages,
-	    (nr_free_pages << PAGE_SHIFT)  / 1024 / 1024);
+	*nr_pages_p = nr_pages;
+	*nr_free_pages_p = nr_free_pages;
 }
 
 
@@ -133,8 +135,8 @@ kcom_add_page_info(page_frame_info *pfi) {
 	/*
 	 * バディプールの管理情報の初期化
 	 */
-	page_buddy_init(&pfi->buddy, pfi->array, pfi->array[0].pfn, 
-	    pfi->array[0].pfn + pfi->nr_pages);
+	page_buddy_init(&pfi->buddy, pfi->array, pfi->min_pfn, 
+	    pfi->min_pfn + pfi->nr_pages);
 
 	/*
 	 * ページアレイの初期化
@@ -178,8 +180,6 @@ kcom_add_page_info(page_frame_info *pfi) {
 			page_buddy_enqueue(&pfi->buddy, p->pfn); 
 	}
 	spinlock_unlock_restore_intr(&pfi->buddy.lock, &flags);
-
-	show_free_pages();
 }
 
 /** ページフレーム番号からページフレーム情報を取得する

@@ -145,7 +145,7 @@ x86_64_alloc_page_info(uintptr_t min_paddr, uintptr_t max_paddr) {
 	 * ページフレーム情報の配列を含んだ
 	 * ページフレーム配列で管理する対象ページ数) 
 	 */
-	nr_pages = max_paddr >> PAGE_SHIFT; 
+	nr_pages = ( max_paddr - min_paddr ) >> PAGE_SHIFT; 
 	
 	/*
 	 * ページフレーム管理情報/ページプールのエリア/ページフレーム情報の
@@ -169,6 +169,6 @@ x86_64_alloc_page_info(uintptr_t min_paddr, uintptr_t max_paddr) {
 	pfi->max_pfn = ( KERN_STRAIGHT_TO_PHY((uintptr_t)pfi) >> PAGE_SHIFT );
 	pfi->nr_pages = nr_pages;
 
-	kcom_add_page_info(pfi);
+	kcom_add_page_info(pfi);  /*  ページプールの登録  */
 }
 
