@@ -338,7 +338,7 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 	}
 
 	kassert( spinlock_locked_by_self( &q->lock ) );
-	kassert( !all_thread_lock_by_self() );
+	kassert( !all_thread_locked_by_self() );
 
 	/*  メッセージをユーザ空間からコピーする  */
 	rc = vm_copy_in(&current->p->vm, &new_msg->body, m, sizeof(msg_body));
@@ -376,7 +376,7 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 
 unlock_out:
 	kassert( spinlock_locked_by_self( &q->lock ) );
-	kassert( !all_thread_lock_by_self() );
+	kassert( !all_thread_locked_by_self() );
 
 	spinlock_unlock( &q->lock );
 
@@ -384,7 +384,7 @@ unlock_out:
 
 msg_free_out:
 	kassert( spinlock_locked_by_self( &q->lock ) );
-	kassert( !all_thread_lock_by_self() );
+	kassert( !all_thread_locked_by_self() );
 
 	lpc_msg_free(new_msg);
 	spinlock_unlock( &q->lock );
@@ -393,7 +393,7 @@ msg_free_out:
 
 msg_free_nolock_out:
 	kassert( !spinlock_locked_by_self( &q->lock ) );
-	kassert( !all_thread_lock_by_self() );
+	kassert( !all_thread_locked_by_self() );
 
 	lpc_msg_free(new_msg);
 
