@@ -202,16 +202,18 @@ lpc_destroy_msg_queue(msg_queue *que) {
  */
 int
 lpc_send(endpoint dest, lpc_tmout tmout, void *m){
-	int          rc;
-	intrflags flags;
-	thread     *thr;
-	msg_queue    *q;
-	msg    *new_msg;
-	sync_reason res;
-	sync_block blk;
+	int               rc;
+	intrflags      flags;
+	thread          *thr;
+	msg_queue         *q;
+	msg         *new_msg;
+	sync_reason      res;
+	sync_block       blk;
 	sync_obj   timer_obj;
-	sync_block timer_sb;
-	timer_callout cb;
+	sync_block  timer_sb;
+	timer_callout     cb;
+
+	kassert( m != NULL );
 
 	acquire_all_thread_lock( &flags );
 	thr = thr_find_thread_by_tid_nolock(dest);
@@ -308,7 +310,8 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 			if ( thr == NULL ) {
 				
 				release_all_thread_lock(&flags);
-				return -ENOENT;  /*  宛先不明  */
+				rc = -ENOENT;  /*  宛先不明  */
+				goto msg_free_nolock_out;
 			}
 
 			q = &thr->mque;
@@ -316,6 +319,9 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 			release_all_thread_lock(&flags);
 		}
 	}
+
+	kassert( spinlock_locked_by_self( &q->lock ) );
+	kassert( !all_thread_lock_by_self() );
 
 	/*  メッセージをコピーする  */
 	rc = vm_copy_in(&current->p->vm, &new_msg->body, m, sizeof(msg_body));
@@ -346,16 +352,28 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 	return 0;
 
 unlock_out:
+	kassert( spinlock_locked_by_self( &q->lock ) );
+	kassert( !all_thread_lock_by_self() );
+
 	spinlock_unlock( &q->lock );
+
 	return rc;
 
 msg_free_out:
+	kassert( spinlock_locked_by_self( &q->lock ) );
+	kassert( !all_thread_lock_by_self() );
+
 	lpc_msg_free(new_msg);
 	spinlock_unlock( &q->lock );
+
 	return rc;
 
 msg_free_nolock_out:
+	kassert( !spinlock_locked_by_self( &q->lock ) );
+	kassert( !all_thread_lock_by_self() );
+
 	lpc_msg_free(new_msg);
+
 	return rc;
 }
 

@@ -198,6 +198,14 @@ kcom_launch_new_thread(int (*start)(void *), void *arg) {
 	/* ここには来ない */
 }
 
+/** 全スレッドロックを保持していることを確認する
+ */
+bool
+all_thread_lock_by_self(void) {
+
+	return spinlock_locked_by_self( &thr_created_tree.lock );
+}
+
 /** 全スレッドロックを獲得する
     @param[in] flags 割込み状態保存領域のアドレス
  */

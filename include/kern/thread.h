@@ -120,6 +120,7 @@ typedef struct _thread_dic{
 
 void thr_idpool_init(void);
 /*   IF関数  */
+bool all_thread_lock_by_self(void);
 void acquire_all_thread_lock(intrflags *flags);
 void release_all_thread_lock(intrflags *flags);
 thread *thr_find_thread_by_tid_nolock(tid _key);
