@@ -25,9 +25,16 @@
 #include <hal/traps.h>
 #include <hal/arch-cpu.h>
 
-#define EV_NR_EVENT  (128)                        /*<  128イベント                           */
-#define EV_MAP_LEN   ( EV_NR_EVENT / 64 )         /*<  ビットマップ配列長(uint64_t配列の数)  */
-#define EV_RESERVED  (0)                          /*<  0番は予約                             */
+/** イベントの数
+ */
+#define EV_NR_EVENT  (128)                     /*<  128イベント                           */
+#define EV_MAP_LEN   ( EV_NR_EVENT / 64 )      /*<  ビットマップ配列長(uint64_t配列の数)  */
+#define EV_RESERVED  (0)                       /*<  0番は予約                             */
+
+/** イベントフラグ
+ */
+#define EV_FLAGS_NONE              (0)       /*< 通常のイベント                          */
+#define EV_FLAGS_THREAD_SPECIFIC   (1)       /*< プロセス内の他のスレッドに引き継がない  */
 
 #define EV_SIG_HUP      (1)
 #define EV_SIG_INT      (2)
@@ -78,9 +85,11 @@
 #define EV_CODE_BUS_ADRALN    (1)  /*< 不正なアドレス・アライメント  */
 #define EV_CODE_BUS_ADRERR    (2)  /*< 存在しない物理アドレス        */
 #define EV_CODE_BUS_OBJERR    (3)  /*< 存在しない物理アドレス        */
+
 /** イベント情報
  */
 typedef struct _evinfo{
+	event_flags   flags;  /*< イベント処理用のフラグ        */
 	event_id         no;  /*< イベント番号                  */
 	event_errno     err;  /*< イベントエラー番号            */
 	event_code     code;  /*< イベントコード                */
@@ -123,6 +132,7 @@ typedef struct _event_frame{
 	fpu_context  fpu_frame;    /*< FPUフレーム                   */
 }event_frame;
 
+struct _proc;
 struct _thread;
 void ev_queue_init(event_queue *_que);
 void ev_free_pending_events(event_queue *_que);
@@ -142,7 +152,8 @@ int ev_mask_find_first_bit(event_mask *_mask, event_id *_valp);
 int ev_send(tid _dest, event_node *_node);
 int ev_dequeue(event_node **_nodep);
 bool ev_has_pending_events(struct _thread *_thr);
-
+int ev_send_to_process(struct _proc *_p, event_node *_node);
+void ev_handle_exit_thread_events(void);
 int ev_alloc_node(event_id id, event_node **nodep);
 void ev_fill_sigill(evinfo *_info, event_code _code, void *_uvaddr);
 void ev_fill_sigfpe(evinfo *_info, event_code _code, void *_uvaddr);

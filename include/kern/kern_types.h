@@ -54,6 +54,7 @@ typedef uint64_t             ticks;  /*< 電源投入時からのティック発
 typedef uint64_t         delay_cnt;  /*< ミリ秒以下のループ待ち指定値                 */
 typedef uint64_t        events_map;  /*< 非同期イベントのビットマップ                 */
 typedef obj_cnt_type      event_id;  /*< 非同期イベントID                             */
+typedef uint32_t       event_flags;  /*< カーネル内でのイベント処理フラグ             */
 typedef int            event_errno;  /*< 非同期イベントエラー番号                     */
 typedef int             event_code;  /*< 非同期イベントコード番号                     */
 typedef int             event_trap;  /*< 非同期イベントトラップ番号                   */

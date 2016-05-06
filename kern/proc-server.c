@@ -70,7 +70,7 @@ handle_send_event(proc_sys_send_event *sndev, endpoint src) {
 		goto error_out;
 
 	info = &node->info;
-
+	info->flags = EV_FLAGS_THREAD_SPECIFIC;
 	info->sender_id = src_tid;
 	info->code = EV_SIG_SI_USER;
 	info->data = sndev->data;

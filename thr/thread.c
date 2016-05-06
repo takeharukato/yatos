@@ -565,24 +565,30 @@ enter_dead:
 	RB_REMOVE(thread_id_tree, &thr_created_tree.booking, current); 
 	release_all_thread_lock( &flags );
 
-	ev_free_pending_events( &current->evque );  /* 未配送イベントの削除    */
-	lpc_destroy_msg_queue( &current->mque );    /* メッセージキューの削除  */
-	
 	spinlock_lock_disable_intr( &current->p->lock, &flags );
 	list_del( &current->plink );  /* プロセス空間からスレッドを除去  */
 	if ( current == current->p->master ) {
 
-		if ( !queue_is_empty( &current->p->threads ) )
+		if ( !queue_is_empty( &current->p->threads ) ) {
 
 			/*
-			 * 最終スレッドでなければマスタースレッドを引き継ぐ
+			 * 最終スレッドでなければ他にマスタースレッドを引き継ぐ
 			 */
 			current->p->master = 
 				CONTAINER_OF(queue_ref_top( &current->p->threads ),
 				    thread, plink);
+		}
 	}
+
+	/* スレッドに保留されていたイベントを引き継ぐ, スレッド固有のイベントを破棄する */
+	ev_handle_exit_thread_events();
+
 	spinlock_unlock_restore_intr( &current->p->lock, &flags );
-	
+
+	kassert( !ev_has_pending_events(current) );  /* 未配送イベントは無いはず    */
+
+	lpc_destroy_msg_queue( &current->mque );    /* メッセージキューの削除  */
+
 	proc_destroy(current->p); /*  プロセスの解放を試みる  */
 
         /*  プロセス空間が消失している可能性があるので

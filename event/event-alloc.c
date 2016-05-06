@@ -88,7 +88,7 @@ ev_alloc_node(event_id id, event_node **nodep) {
 
 	list_init( &node->link );
 	info = &node->info;
-
+	
 	info->no = id;
 	if ( current->p == hal_refer_kernel_proc() )
 		info->code = EV_SIG_SI_KERNEL;

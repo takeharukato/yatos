@@ -20,6 +20,7 @@
 #include <kern/string.h>
 #include <kern/errno.h>
 #include <kern/spinlock.h>
+#include <kern/proc.h>
 #include <kern/thread.h>
 #include <kern/async-event.h>
 #include <kern/queue.h>
@@ -46,6 +47,7 @@ ev_queue_init(event_queue *que){
 	for( i = 0; EV_NR_EVENT > i ; ++i) 
 		queue_init( &que->que[i] );
 }
+
 /** 未配送のイベントを開放する
     @param[in] que 操作対象のキュー
  */
@@ -74,6 +76,95 @@ ev_free_pending_events(event_queue *que){
 		}
 	}
 	spinlock_unlock_restore_intr( &que->lock, &flags );
+}
+
+/** プロセスにシグナルを送る
+    @param[in] p      配送先プロセス
+    @param[in] node   シグナルノード
+    @retval    0      正常配送完了
+    @retval   -ENOENT マスクしていない配送先がおらず自身がマスタスレッドだった
+ */
+int
+ev_send_to_process(proc *p, event_node *node) {
+	list        *tli;
+	thread      *thr;	
+	intrflags  flags;
+
+	kassert( spinlock_locked_by_self( &p->lock ) );
+
+	/*
+	 * 配送先スレッドを特定する
+	 */
+	for( tli = queue_ref_top( &p->threads );
+	     tli != (list *)&p->threads;
+	     tli = tli->next) {
+		
+		thr = CONTAINER_OF(tli,thread, plink);
+		
+		/*  対象イベントをマスクしている場合は除外  */
+		if ( ev_mask_test(&thr->evque.masks, node->info.no) )
+			continue;  
+		
+		goto found;  /*  配送先が見つかった  */
+	}
+		
+	thr = current->p->master;  /*  マスターに配送 */
+
+found:
+	/*
+	 * イベントを配送
+	 */
+	spinlock_lock_disable_intr( &thr->evque.lock, &flags );
+	queue_add( &thr->evque.que[node->info.no], &node->link);  /*  追加  */
+	spinlock_unlock_restore_intr( &thr->evque.lock, &flags );
+
+	return 0;
+}
+
+
+/** カレントスレッド終了時の未処理イベントを回送
+    @param[in] p 
+ */
+void
+ev_handle_exit_thread_events(void) {
+	int            i;
+	int           rc;
+	list         *li;
+	list       *next;
+	event_node *node;
+
+	kassert( current->status == THR_TSTATE_EXIT );
+	kassert( spinlock_locked_by_self( &current->p->lock ) );
+
+	for( i = 0; EV_NR_EVENT > i ; ++i) {
+
+		for( li = queue_ref_top( &current->evque.que[i]);
+		     li != (list *)&current->evque.que[i];
+		     li = next) {
+			
+			next = li->next;
+			node = CONTAINER_OF(li, event_node, link);
+			list_del( li );
+
+			if ( ( current == current->p->master ) || 
+			    ( node->info.flags & EV_FLAGS_THREAD_SPECIFIC ) ) {
+				
+				/* 自身が最終スレッドだった場合や
+				 * スレッド固有イベントの場合は, 
+				 * 即時にイベントを破棄する  
+				 */
+				kfree( node );
+				continue;  
+			}
+			
+			/*
+			 * イベントを他スレッドに配送
+			 */
+			rc = ev_send_to_process(current->p, node);
+			if ( rc != 0 )
+				kfree( node );  /*  配送失敗時は, イベントを破棄  */
+		}
+	}
 }
 
 /** イベントマスクを取得する
@@ -120,7 +211,7 @@ ev_has_pending_events(thread *thr){
 	rc = ev_mask_empty( &thr->evque.events );
 	spinlock_unlock_restore_intr( &thr->evque.lock, &flags );
 
-	return rc;
+	return !rc;
 }
 /** イベントを送信する
     @param[in] dest  送信先スレッド
