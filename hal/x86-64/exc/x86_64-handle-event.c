@@ -21,8 +21,8 @@
 #include <kern/errno.h>
 #include <kern/async-event.h>
 #include <kern/page.h>
+#include <kern/irq.h>
 
-#include <hal/traps.h>
 #include <hal/arch-cpu.h>
 
 /** イベントハンドラからの復帰
@@ -157,5 +157,6 @@ x86_64_handle_post_exception(trap_context  __attribute__ ((unused))   *ctx) {
 		sched_schedule();   /*  遅延ディスパッチを処理  */
 	}
 
-	x86_64_setup_event_handler(ctx);
+	if ( hal_is_intr_from_user(ctx) )
+		x86_64_setup_event_handler(ctx);
 }
