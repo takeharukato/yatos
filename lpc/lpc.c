@@ -184,8 +184,8 @@ lpc_destroy_msg_queue(msg_queue *que) {
 		m = CONTAINER_OF(li, struct _msg, link);
 		lpc_msg_free(m); /* メッセージを開放する  */
 	}
-	sync_wake( &que->wait_reciever, SYNC_OBJ_DESTROYED ); /*  メッセージキュー消滅を通知  */
-	sync_wake( &que->wait_sender, SYNC_OBJ_DESTROYED );   /*  メッセージキュー消滅を通知  */
+	sync_wake( &que->wait_reciever, SYNC_OBJ_DESTROYED ); /* メッセージキュー消滅を通知 */
+	sync_wake( &que->wait_sender, SYNC_OBJ_DESTROYED );  /* メッセージキュー消滅を通知 */
 	spinlock_unlock_restore_intr( &que->lock, &flags);
 }
 
@@ -231,6 +231,7 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 		release_all_thread_lock(&flags);
 		return rc;
 	}
+
 	/*
 	 * 送信待ちスレッドがいない場合は, 受信側スレッドを待ち合わせる
 	 */
@@ -241,10 +242,16 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 		
 		if ( tmout == 0 ) {
 			
+			/* ノンブロッキング送信
+			 * 受信者がいない場合は, ロック, メモリを解放して抜ける
+			 */
 			rc = -EAGAIN;
 			goto msg_free_out;
 		} else if ( tmout < 0 ) {
 
+			/* ブロッキング送信
+			 * 受信者待ち同期オブジェクトで休眠
+			 */
 			_sync_wait_no_schedule( &q->wait_reciever, &blk );
 			spinlock_unlock( &q->lock );
 
@@ -271,7 +278,11 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 
 			spinlock_lock( &q->lock );
 		} else {
-
+			
+			/* タイムアウト付きのブロッキング送信
+			 * 受信者待ちとタイムアウトの2つの同期オブジェクトに
+			 * 対して休眠する
+			 */
 			_tim_wait_obj_no_schedule(&q->wait_reciever, &timer_obj, 
 			    &blk, &timer_sb, &cb, tmout );
 			spinlock_unlock( &q->lock );
@@ -292,7 +303,9 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 			}
 
 			if ( res == SYNC_WAI_TIMEOUT ) {
-				
+
+                                /*  タイムアウト時は, メモリを解放して抜ける
+				 */
 				rc = -EAGAIN;
 				goto msg_free_nolock_out;
 			}
@@ -308,9 +321,13 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 			acquire_all_thread_lock( &flags );
 			thr = thr_find_thread_by_tid_nolock(dest);
 			if ( thr == NULL ) {
-				
+
+				/* 待ち中は, 全スレッドロックを取っていないので, 
+				 * 送信先スレッドが消失する可能性がある。
+				 * 送信先スレッド消失時は, メモリを解放して抜ける
+				 */
 				release_all_thread_lock(&flags);
-				rc = -ENOENT;  /*  宛先不明  */
+				rc = -ENOENT;
 				goto msg_free_nolock_out;
 			}
 
@@ -323,16 +340,22 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 	kassert( spinlock_locked_by_self( &q->lock ) );
 	kassert( !all_thread_lock_by_self() );
 
-	/*  メッセージをコピーする  */
+	/*  メッセージをユーザ空間からコピーする  */
 	rc = vm_copy_in(&current->p->vm, &new_msg->body, m, sizeof(msg_body));
 	if ( rc == -EFAULT )
 		goto unlock_out;
 
 	lpc_msg_add_nolock(q, new_msg);  /*  メッセージキューに追加  */
 
+
+        /*
+	 *  送信完了待ち
+	 */
 	spinlock_lock( &new_msg->cqlock);
-        /*  送信完了待ち  */
+
+	/*  送信完了待ち同期オブジェクトでの休眠準備  */
 	_sync_wait_no_schedule( &new_msg->completion, &blk );
+
 	spinlock_unlock( &new_msg->cqlock );
 
 	sync_wake( &q->wait_sender, SYNC_WAI_RELEASED);  /*  受信者を起床  */
@@ -388,14 +411,14 @@ msg_free_nolock_out:
  */
 int
 lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
-	int          rc;
-	intrflags flags;
-	msg       *rmsg;
-	sync_reason res;
-	sync_block blk;
+	int               rc;
+	intrflags      flags;
+	msg            *rmsg;
+	sync_reason      res;
+	sync_block       blk;
 	sync_obj   timer_obj;
-	sync_block timer_sb;
-	timer_callout cb;
+	sync_block  timer_sb;
+	timer_callout     cb;
 
 	spinlock_lock_disable_intr( &current->mque.lock, &flags);
 
@@ -411,10 +434,16 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
 
 		if ( tmout == 0 ) {
 			
+			/* ノンブロッキング受信
+			 * 受信可能なメッセージがない場合は, エラー復帰
+			 */
 			rc = -EAGAIN;
 			goto unlock_out;
 		} else if ( tmout < 0 ) {
 			
+			/* ブロッキング受信
+			 * 送信者待ち同期オブジェクトで休眠
+			 */
 			_sync_wait_no_schedule( &current->mque.wait_sender, &blk );
 
 			spinlock_unlock_restore_intr( &current->mque.lock, &flags);
@@ -437,6 +466,10 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
 			spinlock_lock_disable_intr( &current->mque.lock, &flags);
 		} else {
 
+			/* タイムアウト付きのブロッキング受信
+			 * 送信者待ちとタイムアウトの2つの同期オブジェクトに
+			 * 対して休眠する
+			 */
 			_tim_wait_obj_no_schedule( &current->mque.wait_sender, 
 			    &timer_obj, &blk, &timer_sb, &cb, tmout );
 			spinlock_unlock_restore_intr( &current->mque.lock, &flags);
@@ -446,6 +479,7 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
 
 			res = _tim_finish_wait_obj(&current->mque.wait_sender, 
 			    &timer_obj, &blk, &timer_sb, &cb);
+
 			/*  自スレッドのキューであるためオブジェクト破壊
 			 *  で返ることはない
 			 */
@@ -462,13 +496,14 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
 		
 	}
 
-	/*  メッセージをコピーする  */	
+	/*  メッセージをユーザ空間にコピーする  */	
 	rc = vm_copy_out(&current->p->vm, m, &rmsg->body, sizeof(msg_body));
 	if ( rc == -EFAULT )
 		goto wakeup_out;
 
 	if ( msg_src != NULL ) {
 		
+		/*  送信者のスレッドIDを返却する  */	
 		rc = vm_copy_out(&current->p->vm, msg_src, &rmsg->src, sizeof(endpoint) );
 		if ( rc == -EFAULT )
 			goto wakeup_out;
@@ -477,6 +512,9 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
 	rc = 0;
 
 wakeup_out:
+	/*
+	 *  送信完了待ち合わせ処理
+	 */
 	spinlock_lock( &rmsg->cqlock );
 	sync_wake( &rmsg->completion, SYNC_WAI_RELEASED );  /*  送信者を起床  */
 	spinlock_unlock( &rmsg->cqlock );
@@ -489,8 +527,8 @@ unlock_out:
 
 /** メッセージを送信し返信を待ち受ける
     @param[in] dest   送信先エンドポイント
-    @param[in] m       受信電文格納先
-    @retval    0       正常に受信した
+    @param[in] m      受信電文格納先
+    @retval    0      正常に受信した
     @note 送信後ユーザ空間に戻らず, リプライを受け付けるシステムコール
     典型的な送受信手順になるので, 複合システムコール(composite system call)
     として用意している。

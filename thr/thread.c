@@ -201,7 +201,7 @@ kcom_launch_new_thread(int (*start)(void *), void *arg) {
 /** 全スレッドロックを保持していることを確認する
  */
 bool
-all_thread_lock_by_self(void) {
+all_thread_locked_by_self(void) {
 
 	return spinlock_locked_by_self( &thr_created_tree.lock );
 }
