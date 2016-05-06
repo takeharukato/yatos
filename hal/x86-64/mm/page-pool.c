@@ -46,14 +46,14 @@ check_page_reserved(karch_info *info, uintptr_t paddr) {
 		return 1; /* memory mapped device  */
 	}
 
-	if ( ( info->boot_kpgtbl_start <= paddr ) && 
-	    ( paddr < ( (uintptr_t)KERN_STRAIGHT_TO_PHY(info->kpgtbl) + PAGE_SIZE ) ) ) {
+	if ( ( info->boot_kpgtbl_start_phy <= paddr ) && 
+	    ( paddr < ( (uintptr_t)KERN_STRAIGHT_TO_PHY(info->boot_kpgtbl) + PAGE_SIZE ) ) ) {
 
 		return 1; /* kernel page table */
 	}
 
-	if ( (  KERN_STRAIGHT_PAGE_START( (uintptr_t)&_kernel_start )  <= paddr ) &&
-	    ( paddr < KERN_STRAIGHT_PAGE_END((uintptr_t)&_kernel_end) ) ) {
+	if ( (  PAGE_START( (uintptr_t)&_kernel_start )  <= paddr ) &&
+	    ( paddr < PAGE_END((uintptr_t)&_kernel_end) ) ) {
 
 		return 1; /* kernel page  */
 	}
@@ -172,3 +172,51 @@ x86_64_alloc_page_info(uintptr_t min_paddr, uintptr_t max_paddr) {
 	kcom_add_page_info(pfi);  /*  ページプールの登録  */
 }
 
+/** ブート時の予約ページを解放する
+    @param[in] info  HALのブート情報格納先アドレス
+ */
+void
+x86_64_release_boot_reserved_pages(karch_info *info) {
+	int                      i;
+	int                     rc;
+	uintptr_t            paddr;
+	obj_cnt_type nr_free_pages;
+	obj_cnt_type      nr_pages;
+	grub_mod              *mod;
+
+	kassert( info != NULL );
+
+	/*
+	 * 起動時に一時的に使用したカーネル空間用ページテーブルを解放
+	 */
+	for( paddr = info->boot_kpgtbl_start_phy;
+	     paddr < ( (uintptr_t)KERN_STRAIGHT_TO_PHY(info->boot_kpgtbl) + PAGE_SIZE );
+	     paddr += PAGE_SIZE) {
+
+		rc = page_release_reservation( paddr >> PAGE_SHIFT );
+		kassert( rc == 0 );
+	}
+
+	/*
+	 * Grubがロードしたシステムプロセスの実行形式を解放
+	 */
+	for(i = 0; i < info->nr_mod; ++i) {
+
+		mod = &info->modules[i];
+		for( paddr = mod->start;
+		     paddr < ( PAGE_ALIGNED( mod->end ) 
+			 ? ( mod->end ) 
+			 : PAGE_NEXT(mod->end) );
+		     paddr += PAGE_SIZE) {
+
+			rc = page_release_reservation( paddr >> PAGE_SHIFT );
+			kassert( rc == 0 );			
+		}
+	}
+
+	kcom_refer_free_pages(&nr_pages, &nr_free_pages);
+	kprintf(KERN_INF, "page-pool: %d/%d free pages(%d MiB free)\n", 
+	    nr_free_pages, 
+	    nr_pages,
+	    (nr_free_pages << PAGE_SHIFT)  / 1024 / 1024);
+}

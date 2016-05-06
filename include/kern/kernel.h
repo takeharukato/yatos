@@ -17,6 +17,7 @@
 void kcom_start_kernel(void);
 void dbg_console_service_init(void);
 void system_threads_init(void);
+void hal_release_boot_time_resources(void);
 #endif  /*  !ASM_FILE  */
 
 #endif  /*  _KERN_KERNEL_H   */

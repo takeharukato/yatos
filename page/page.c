@@ -182,6 +182,36 @@ kcom_add_page_info(page_frame_info *pfi) {
 	spinlock_unlock_restore_intr(&pfi->buddy.lock, &flags);
 }
 
+/** ページの予約を解除する
+    @param[in] pfn ページフレーム番号
+    @retval    0      正常に解除した
+    @retval   -EINVAL 予約ページでない
+    @retval   -ENOENT ページフレーム番号が不正
+ */
+int
+page_release_reservation(obj_cnt_type pfn) {
+	int               rc;
+	page_frame     *page;
+	intrflags      flags;
+
+	rc = pfn_to_page_frame(pfn, &page);
+	if ( rc != 0 )
+		return rc;
+	kassert( page != NULL );
+
+	if ( !( page->state & PAGE_CSTATE_RESERVED ) )
+		return -EINVAL;
+	
+	page->state &= ~PAGE_CSTATE_RESERVED;
+	kassert( page->buddyp != NULL );
+
+	spinlock_lock_disable_intr(&page->buddyp->lock, &flags);
+	page_buddy_enqueue( page->buddyp, page->pfn); 
+	spinlock_unlock_restore_intr(&page->buddyp->lock, &flags);	
+	
+	return 0;
+}
+
 /** ページフレーム番号からページフレーム情報を取得する
     @param[in] pfn   ページフレーム番号
     @param[in] pp    ページフレーム情報を指すポインタのアドレス

@@ -33,9 +33,9 @@ alloc_boot_kmap_page(void **addrp) {
 
 	info = _refer_boot_info();
 
-	info->boot_kpgtbl_start -= PAGE_SIZE;
+	info->boot_kpgtbl_start_phy -= PAGE_SIZE;
 
-	*addrp = (void *)PHY_TO_KERN_STRAIGHT( info->boot_kpgtbl_start );
+	*addrp = (void *)PHY_TO_KERN_STRAIGHT( info->boot_kpgtbl_start_phy );
 	
 	return 0;
 }
@@ -48,7 +48,7 @@ x86_64_boot_map_kernel(karch_info *info) {
 	uintptr_t    start_addr;
 	uintptr_t     last_addr;
 
-	info->boot_kpgtbl_start = KERN_KPGTBL_MAX;
+	info->boot_kpgtbl_start_phy = KERN_KPGTBL_MAX;
 	info->boot_kpgtbl = info->kpgtbl = (void *)PHY_TO_KERN_STRAIGHT(KERN_KPGTBL_MAX);
 	memset((void *)info->kpgtbl, 0, PAGE_SIZE);
 
@@ -73,7 +73,8 @@ x86_64_boot_map_kernel(karch_info *info) {
 	}
 #if defined(SHOW_BOOT_PGTBL_MAP)
 	kprintf(KERN_INF, "boot-map-kernel page table :(min, max, phy)=(%p, %p, %p)\n",
-	    (void *)info->boot_kpgtbl_start, info->kpgtbl, (uintptr_t)KERN_STRAIGHT_TO_PHY(info->kpgtbl));
+	    (void *)info->boot_kpgtbl_start_phy, info->kpgtbl, 
+	    (uintptr_t)KERN_STRAIGHT_TO_PHY(info->kpgtbl));
 #endif  /*  SHOW_BOOT_PGTBL_MAP  */
 	load_pgtbl((uintptr_t)KERN_STRAIGHT_TO_PHY(info->kpgtbl));
 }

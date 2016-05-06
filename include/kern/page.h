@@ -65,6 +65,7 @@ void inc_page_map_count(void *addrp);
 void dec_page_map_count(void *addrp);
 void calc_page_order(size_t _size, page_order *_res);
 
+int page_release_reservation(obj_cnt_type _pfn);
 int kvaddr_to_page_frame(void *addrp, page_frame  **pp);
 int pfn_to_page_frame(obj_cnt_type _pfn, page_frame  **_pp);
 

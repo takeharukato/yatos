@@ -31,6 +31,8 @@
 #include <hal/arch-cpu.h>
 #include <hal/boot-acpi.h>
 
+//#define DEBUG_BOOT_TIME_PAGE_POOL
+
 static karch_info boot_info;
 
 void x86_64_init_cpus(void *_kpgtbl);
@@ -109,10 +111,13 @@ page_init(karch_info  *info) {
 	x86_64_add_high_pages(info);
 
 	kcom_refer_free_pages(&nr_pages, &nr_free_pages);
+
+#if defined(DEBUG_BOOT_TIME_PAGE_POOL)
 	kprintf(KERN_INF, "page-pool: %d/%d free pages(%d MiB free)\n", 
 	    nr_free_pages, 
 	    nr_pages,
 	    (nr_free_pages << PAGE_SHIFT)  / 1024 / 1024);
+#endif  /*  DEBUG_BOOT_TIME_PAGE_POOL */
 }
 
 /** Cエントリルーチン
@@ -121,7 +126,7 @@ page_init(karch_info  *info) {
 void
 x86_64_prepare(uint64_t __attribute__ ((unused)) magic, 
     uint64_t __attribute__ ((unused)) mbaddr) {
-	karch_info  *info = (karch_info *)&boot_info;
+	karch_info  *info = &boot_info;
 
 	bss_init();
 	init_kconsole();
@@ -140,4 +145,18 @@ x86_64_prepare(uint64_t __attribute__ ((unused)) magic,
 	kcom_start_kernel();
 
 	while(1);
+}
+
+/** 起動処理用に予約したリソースを解放する
+ */
+void
+hal_release_boot_time_resources(void) {
+	intrflags flags;
+
+	hal_cpu_disable_interrupt( &flags );
+
+	/* ブート時の予約ページを解放  */	
+	x86_64_release_boot_reserved_pages(&boot_info);
+
+	hal_cpu_restore_interrupt( &flags );
 }

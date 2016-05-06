@@ -61,7 +61,11 @@ kcom_start_kernel(void) {
 	system_threads_init();    /*  システムスレッドの起動  */
 	hal_load_system_procs();  /*  システムプロセスの起動  */
 
+	hal_release_boot_time_resources();
+
 	ti_enable_dispatch();
+
+
 
 	idle_start();
 }

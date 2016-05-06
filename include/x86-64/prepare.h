@@ -58,7 +58,7 @@ typedef struct _karch_info{
 	grub_mod               modules[HAL_MAX_MB_MOD];
 	memory_area         ram_area[HAL_MAX_RAM_AREA];
 	memory_area   resv_area[HAL_MAX_RESERVED_AREA];
-	uintptr_t                    boot_kpgtbl_start;
+	uintptr_t                boot_kpgtbl_start_phy;
 	void                                   *kpgtbl;
 	void                              *boot_kpgtbl;
 	struct acpi_rdsp                         *rdsp;
@@ -71,5 +71,6 @@ void x86_64_boot_map_kernel(karch_info *_info);
 void x86_64_parse_multiboot2_info(uint64_t _magic, uint64_t _mbaddr, karch_info *_info);
 void x86_64_alloc_page_info(uintptr_t _min_paddr, uintptr_t _max_paddr);
 void x86_64_remap_kernel(karch_info *_info);
+void x86_64_release_boot_reserved_pages(karch_info *_info);
 karch_info  *_refer_boot_info(void);
 #endif  /*  _HAL_PREPARE_H   */

@@ -23,8 +23,6 @@
 
 //#define SHOW_BOOT_PGTBL_MAP
 
-karch_info  *_refer_boot_info(void) ;
-
 void
 map_kernel_page(uintptr_t paddr, uintptr_t vaddr, 
     uintptr_t page_attr, void *kpgtbl, int (*_get_page)(void **addrp)) {
