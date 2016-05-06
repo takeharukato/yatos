@@ -3,7 +3,7 @@
 /*  Yet Another Teachable Operating System                            */
 /*  Copyright 2016 Takeharu KATO                                      */
 /*                                                                    */
-/*  Userlland event handler  routines                                 */
+/*  Userlland start routine                                           */
 /*                                                                    */
 /**********************************************************************/
 
