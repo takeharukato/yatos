@@ -124,13 +124,13 @@ _sched_wakeup(thread *thr) {
 	intrflags flags;
 
 	kassert( thr != NULL );
-	kassert( ( thr->status == THR_TSTATE_WAIT ) || 
+	kassert( ( thr_in_wait(thr) ) || 
 	    ( thr->status == THR_TSTATE_READY ) ||
 	    ( thr->status == THR_TSTATE_RUN ) ||
 	    ( thr->status == THR_TSTATE_DORMANT ) );
 
 	spinlock_lock_disable_intr( &ready_queues[thr->prio].lock, &flags);
-	if ( ( thr->status == THR_TSTATE_WAIT ) || ( thr->status == THR_TSTATE_DORMANT ) ) {
+	if ( ( thr_in_wait(thr) ) || ( thr->status == THR_TSTATE_DORMANT ) ) {
 
 		/* 既に起床されたスレッドをキューに入れ直して
 		 * キューを破壊しないように, WAIT/DORMANTの場合だけ

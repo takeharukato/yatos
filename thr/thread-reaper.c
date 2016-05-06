@@ -117,7 +117,7 @@ _thr_init_reaper(void) {
 	kassert( rc == 0 );
 	kassert( ktr->thr->tid == ID_RESV_REAPER );
 
-	sync_init_object( &ktr->wai, SYNC_WAKE_FLAG_ALL );
+	sync_init_object( &ktr->wai, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT );
 	tq_init( &ktr->tq );
 
 	rc = thr_start(ktr->thr, current->tid);

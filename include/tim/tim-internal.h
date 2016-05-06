@@ -26,6 +26,7 @@ struct _sync_obj;
 struct _sync_block;
 struct _timer_callout;
 enum _sync_reason;
+
 ticks _tim_refer_uptime_lockfree(void);
 void _tim_invoke_callout(ticks _cur_tick);
 void _tim_wait_obj_no_schedule(struct _sync_obj *_obj, struct _sync_obj *_timer_objp, 

@@ -252,8 +252,12 @@ ev_send(tid dest, event_node *node) {
 	queue_add( &thr->evque.que[node->info.no], &node->link );
 	if ( !ev_mask_test(&thr->evque.masks, node->info.no) ) {
 		
-		/*  イベントを配送可能な場合はスレッドの待ちを起こす  */
-		_sched_wakeup(thr);
+		/* イベントを配送可能な場合で, 休眠条件が合えば, 
+		 * 休眠しているスレッドを起こす  
+		 */
+		if ( ( ( node->info.no == EV_SIG_KILL ) && ( thr_wait_killable(thr) ) ) ||
+		    thr_wait_intr(thr) )
+			_sched_wakeup(thr);
 	}
 
 	spinlock_unlock( &thr->evque.lock);

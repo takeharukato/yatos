@@ -156,8 +156,8 @@ _thr_init_kthread_params(thread *thr) {
 	list_init( &thr->parent_link );
 
         /*  子スレッド待ち合わせオブジェクト/子スレッドキューの初期化  */
-	sync_init_object( &thr->children_wait, SYNC_WAKE_FLAG_ALL );
-	sync_init_object( &thr->parent_wait, SYNC_WAKE_FLAG_ALL );
+	sync_init_object( &thr->children_wait, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT );
+	sync_init_object( &thr->parent_wait, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT );
 	queue_init ( &thr->children );
 	queue_init ( &thr->exit_waiters );
 	
@@ -536,7 +536,7 @@ thr_exit(exit_code rc) {
 
 	kassert( list_not_linked( &current->parent_link ) );
 	queue_add( &pthr->exit_waiters, &current->parent_link ); 
-	sync_wake( &pthr->children_wait, SYNC_WAI_RELEASED);
+	sync_wake( &pthr->children_wait, SYNC_WAI_RELEASED );
 
 	spinlock_unlock_restore_intr( &pthr->lock, &flags );
 
@@ -545,11 +545,13 @@ thr_exit(exit_code rc) {
 	 */
 	_sync_wait_no_schedule( &current->parent_wait, &blk );
 
-	if ( current->status == THR_TSTATE_WAIT )
+	if ( thr_in_wait(current) )
 		sched_schedule();  /*  休眠実施  */
 
 	res = _sync_finish_wait( &current->parent_wait, &blk);
-	kassert( (res != SYNC_WAI_WAIT) && ( res != SYNC_WAI_TIMEOUT ) );
+	kassert( (res != SYNC_WAI_WAIT) && 
+	    ( res != SYNC_WAI_TIMEOUT ) &&
+	    ( res != SYNC_WAI_DELIVEV ) );
 	kassert( !( current->thr_flags &THR_FLAG_JOINABLE ) );
 
 enter_dead:
@@ -735,6 +737,9 @@ thr_wait(tid wait_tid, thread_wait_flags wflags, tid *exit_tidp, exit_code *rcp)
 			res = sync_wait( &current->children_wait );
 			if ( res != SYNC_WAI_RELEASED )
 				return -EAGAIN;
+
+			if ( res == SYNC_WAI_DELIVEV )
+				return -EINTR;
 
 			spinlock_lock_disable_intr( &current->lock, &flags );
 		}

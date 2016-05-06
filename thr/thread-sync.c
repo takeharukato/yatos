@@ -40,22 +40,25 @@ _sync_init_block(sync_block *blk){
 }
 
 /** 同期オブジェクトを初期化する
-    @param[in] obj    初期化対象の同期オブジェクト
-    @param[in] policy スレッド起床方針
+    @param[in] obj       初期化対象の同期オブジェクト
+    @param[in] policy    スレッド起床方針
+    @param[in] wait_kind 待ち種別
 */
 void
-sync_init_object(sync_obj *obj, sync_pol pol) {
+sync_init_object(sync_obj *obj, sync_pol pol, thr_state wait_kind) {
 	
 	kassert(obj != NULL);
+	kassert( valid_wait_status(wait_kind) );
 
 	spinlock_init( &obj->lock );
+	obj->wait_kind = wait_kind;
 	obj->policy = pol;
 	queue_init( &obj->que );
 }
 
 /** 同期オブジェクトを待ち合わせる
-    @param[in] obj 同期オブジェクト
-    @param[in] blk 同期ブロック
+    @param[in] obj        同期オブジェクト
+    @param[in] blk        同期ブロック
 */
 void
 _sync_wait_no_schedule(sync_obj *obj, sync_block *blkp) {
@@ -63,16 +66,18 @@ _sync_wait_no_schedule(sync_obj *obj, sync_block *blkp) {
 
 	kassert( obj != NULL );
 	kassert( blkp != NULL );
+	kassert( valid_wait_status( obj->wait_kind ) );
 
 	_sync_init_block( blkp );  /*  同期ブロックを初期化  */
 
-	spinlock_lock_disable_intr( &obj->lock, &flags );   /* 同期オブジェクトのロックを獲得 */
+	spinlock_lock_disable_intr( &obj->lock, &flags ); 
 
-	current->status = THR_TSTATE_WAIT;        /* 自スレッドの状態をTHR_TSTATE_WAIT(資源待ち)に設定  */
+	/* 自スレッドの状態を資源待ちに設定  */
+	current->status = obj->wait_kind;
 
 	queue_add( &obj->que, &blkp->olink );  /*  blkを同期オブジェクトのキューに追加  */
 	
-	spinlock_unlock_restore_intr( &obj->lock, &flags );  /* 同期オブジェクトのロックを解放 */
+	spinlock_unlock_restore_intr( &obj->lock, &flags );
 
 	return;
 }
@@ -113,16 +118,22 @@ sync_wait(sync_obj *obj) {
 	sync_block blk;
 	sync_reason rc;
 
+	kassert( obj != NULL );
+	kassert( valid_wait_status( obj->wait_kind ) );
+
 	_sync_wait_no_schedule(obj, &blk);
-	sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
+
+	if ( thr_in_wait(current) )
+		sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
+
 	rc = _sync_finish_wait(obj, &blk);
 
 	return rc;  /*  起床要因を返却  */
 }
 
-/** 同期オブジェクトを待ち合わせる
-    @param[in] obj 同期オブジェクト
-    @param[in] blk 同期ブロック
+/** 同期オブジェクトを待ち合わせているスレッドを起こす
+    @param[in] obj    同期オブジェクト
+    @param[in] reason 起床要因 
 */
 void
 sync_wake(sync_obj *obj, sync_reason reason) {

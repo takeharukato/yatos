@@ -90,7 +90,7 @@ lpc_msg_alloc(msg **mp, pgalloc_flags pgflags) {
 	 */
 	list_init( &m->link );
 	m->qp = NULL;
-	sync_init_object( &m->completion, SYNC_WAKE_FLAG_ALL);
+	sync_init_object( &m->completion, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT );
 	spinlock_init( &m->cqlock );
 
 	m->src = current->tid;  /*  送信元エンドポイントを自スレッドに設定  */
@@ -156,8 +156,8 @@ lpc_msg_queue_init(msg_queue *que) {
 
 	spinlock_init( &que->lock );
 	queue_init( &que->que );
-	sync_init_object( &que->wait_sender, SYNC_WAKE_FLAG_ALL);
-	sync_init_object( &que->wait_reciever, SYNC_WAKE_FLAG_ALL);
+	sync_init_object( &que->wait_sender, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT);
+	sync_init_object( &que->wait_reciever, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT);
 }
 
 /** メッセージキューを破棄する
@@ -195,6 +195,7 @@ lpc_destroy_msg_queue(msg_queue *que) {
     @param[in] tmout タイムアウト時間(単位:ms)
     @param[in] m     送信電文
     @retval    0     正常に送信した
+    @retval   -EINTR イベント割込み
     @note 受信側が送信待ちキューで待機するまでメッセージの書き込みを待ち合わせ、
     電文を登録してから送信待ちキューを起床することで受信側が起床したときには
     メッセージが存在することを保証する
@@ -245,7 +246,7 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 			_sync_wait_no_schedule( &q->wait_reciever, &blk );
 			spinlock_unlock( &q->lock );
 
-			if ( current->status == THR_TSTATE_WAIT )
+			if ( thr_in_wait(current) )
 				sched_schedule();  /*  休眠実施  */			
 
 			res = _sync_finish_wait(&q->wait_reciever, &blk);
@@ -258,14 +259,22 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 				return -ENOENT;  
 			}
 
+			if ( res == SYNC_WAI_DELIVEV ) {
+
+                                /*  イベント受信時は, メモリを解放して抜ける
+				 */
+				lpc_msg_free(new_msg);
+				return -EINTR;  
+			}
+
 			spinlock_lock( &q->lock );
 		} else {
 
 			_tim_wait_obj_no_schedule(&q->wait_reciever, &timer_obj, 
-			    &blk, &timer_sb, &cb, tmout);
+			    &blk, &timer_sb, &cb, tmout );
 			spinlock_unlock( &q->lock );
 
-			if ( current->status == THR_TSTATE_WAIT )
+			if ( thr_in_wait(current) )
 				sched_schedule();  /*  休眠実施  */			
 
 			res = _tim_finish_wait_obj(&q->wait_reciever, &timer_obj, 
@@ -284,6 +293,15 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 				lpc_msg_free(new_msg);
 				return -EAGAIN;
 			}
+
+			if ( res == SYNC_WAI_DELIVEV ) {
+
+                                /*  イベント受信時は, メモリを解放して抜ける
+				 */
+				lpc_msg_free(new_msg);
+				return -EINTR;  
+			}
+
 
 			acquire_all_thread_lock( &flags );
 			thr = thr_find_thread_by_tid_nolock(dest);
@@ -307,20 +325,29 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 	lpc_msg_add_nolock(q, new_msg);  /*  メッセージキューに追加  */
 
 	spinlock_lock( &new_msg->cqlock);
-	_sync_wait_no_schedule( &new_msg->completion, &blk );  /*  送信完了待ち  */
+        /*  送信完了待ち  */
+	_sync_wait_no_schedule( &new_msg->completion, &blk );
 	spinlock_unlock( &new_msg->cqlock );
 
 	sync_wake( &q->wait_sender, SYNC_WAI_RELEASED);  /*  受信者を起床  */
 
 	spinlock_unlock( &q->lock );
 
-	if ( current->status == THR_TSTATE_WAIT )
+	if ( thr_in_wait(current) )
 		sched_schedule();  /*  休眠実施  */			
 
 	res = _sync_finish_wait( &new_msg->completion, &blk);
 	if ( res == SYNC_OBJ_DESTROYED ) {  /* メッセージ破棄による起床  */
 
 		rc = -ENOENT;
+		goto unlock_out;
+	}
+
+	if ( res == SYNC_WAI_DELIVEV ) {
+		
+		/*  イベント受信による起床
+		 */
+		rc = -EINTR;
 		goto unlock_out;
 	}
 
@@ -373,11 +400,12 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
 			rc = -EAGAIN;
 			goto unlock_out;
 		} else if ( tmout < 0 ) {
-
+			
 			_sync_wait_no_schedule( &current->mque.wait_sender, &blk );
+
 			spinlock_unlock_restore_intr( &current->mque.lock, &flags);
 
-			if ( current->status == THR_TSTATE_WAIT )
+			if ( thr_in_wait(current) )
 				sched_schedule();  /*  休眠実施  */			
 
 			res = _sync_finish_wait( &current->mque.wait_sender, &blk );
@@ -388,15 +416,18 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
                          /* メッセージキュー破棄による復帰  */
 			if ( res == SYNC_OBJ_DESTROYED )   
 				return -ENOENT;
+			/*  イベント受信による復帰  */
+			if ( res == SYNC_WAI_DELIVEV )
+				return -EINTR;
 
 			spinlock_lock_disable_intr( &current->mque.lock, &flags);
 		} else {
 
 			_tim_wait_obj_no_schedule( &current->mque.wait_sender, 
-			    &timer_obj, &blk, &timer_sb, &cb, tmout);
+			    &timer_obj, &blk, &timer_sb, &cb, tmout );
 			spinlock_unlock_restore_intr( &current->mque.lock, &flags);
 
-			if ( current->status == THR_TSTATE_WAIT )
+			if ( thr_in_wait(current) )
 				sched_schedule();  /*  休眠実施  */			
 
 			res = _tim_finish_wait_obj(&current->mque.wait_sender, 
@@ -407,8 +438,11 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
 			kassert( res != SYNC_OBJ_DESTROYED );
 
 			if ( res == SYNC_WAI_TIMEOUT ) 
-				return -EAGAIN;  /*  ロック区間外なので即時復帰  */
+				return -EAGAIN;  /*  タイムアウトによる復帰  */
 
+			if ( res == SYNC_WAI_DELIVEV )
+				return -EINTR;  /*  イベント受信による復帰  */
+			
 			spinlock_lock_disable_intr( &current->mque.lock, &flags);
 		}
 		

@@ -23,6 +23,7 @@
 #include <kern/queue.h>
 #include <kern/list.h>
 #include <kern/rbtree.h>
+#include <kern/thread-state.h>
 #include <kern/thread-info.h>
 #include <kern/thread-que.h>
 #include <kern/thread-sync.h>
@@ -35,17 +36,6 @@
 #include <hal/arch-cpu.h> 
 
 //#define ENABLE_JOINABLE_KTHREAD  /*< tst-wait-kthread.cのTPを実行する場合は有効にする */
-
-/** スレッドの状態
- */
-typedef enum _thr_state{
-	THR_TSTATE_FREE=0,     /*< スレッド未使用状態          */
-	THR_TSTATE_DORMANT=1,  /*< スレッド停止中              */
-	THR_TSTATE_READY=2,    /*< 実行可能状態                */
-	THR_TSTATE_RUN=3,      /*< 実行中                      */
-	THR_TSTATE_WAIT=4,     /*< 資源待ち中                  */
-	THR_TSTATE_EXIT=5,     /*< 終了, 回収待ち              */
-}thr_state;
 
 /** スレッド種別
  */

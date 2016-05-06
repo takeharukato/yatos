@@ -25,6 +25,7 @@ struct _thread;
 struct _sync_obj;
 struct _sync_block;
 enum _sync_reason;
+
 void _thr_init_kthread_params(struct _thread *_thr);
 void _ti_set_ti_with_thread(struct _thread *_thr);
 void _thr_init_reaper(void);

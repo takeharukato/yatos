@@ -74,7 +74,7 @@ kthreadB(void __attribute__ ((unused)) *arg) {
 	    current->tid, current);
 
 	kprintf(KERN_INF, "ThreadB: wait on sobj2\n");
-	res = sync_wait(&sobj2);
+	res = sync_wait( &sobj2);
 	if ( res == SYNC_WAI_RELEASED)
 		kprintf(KERN_INF, "ThreadB: wake up from sobj2 OK\n");
 	else
@@ -91,9 +91,9 @@ timer_test(void) {
 	int              rc;
 	thread *thrA, *thrB;
 
-	sync_init_object(&sobj1, SYNC_WAKE_FLAG_ALL);
-	sync_init_object(&sobj2, SYNC_WAKE_FLAG_ALL);
-	sync_init_object(&sobj3, SYNC_WAKE_FLAG_ALL);
+	sync_init_object(&sobj1, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT);
+	sync_init_object(&sobj2, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT);
+	sync_init_object(&sobj3, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT);
 
 	rc = thr_new_thread(&thrA);
 	kassert( rc == 0 );

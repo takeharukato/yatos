@@ -22,6 +22,7 @@
 #include <kern/queue.h>
 #include <kern/list.h>
 #include <kern/spinlock.h>
+#include <kern/thread-state.h>
 
 /** スレッド起床方針
  */
@@ -52,19 +53,21 @@ typedef struct _sync_block{
 /** 同期オブジェクト
  */
 typedef struct _sync_obj{
-	spinlock   lock;  /*< スピンロック      */
-	sync_pol policy;  /*< スレッド起床方針  */
-	queue       que;  /*< キュー本体        */
+	spinlock        lock;  /*< スピンロック         */
+	thr_state  wait_kind;  /*< オブジェクト休眠種別 */
+	sync_pol      policy;  /*< スレッド起床方針     */
+	queue            que;  /*< キュー本体           */
 }sync_obj;
 
-#define __WAIT_OBJECT_INITIALIZER(_que, _flags)			\
+#define __WAIT_OBJECT_INITIALIZER(_que, _flags, _wait_kind)	\
 	{							\
 	.lock=__SPINLOCK_INITIALIZER,			        \
 	.wbflags = _flags,			                \
 	.que = __QUEUE_INITIALIZER(_que),	                \
+	.wait_kind = (_wait_kind),		                \
 	}
 
-void sync_init_object(sync_obj *_obj, sync_pol _pol);
+void sync_init_object(sync_obj *_obj, sync_pol _pol, thr_state _wait_kind);
 sync_reason sync_wait(sync_obj *_obj);
 void sync_wake(sync_obj *_obj, sync_reason _reason);
 #endif  /*  _KERN_THREAD_SYNC_H   */

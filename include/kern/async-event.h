@@ -36,6 +36,8 @@
 #define EV_FLAGS_NONE              (0)       /*< 通常のイベント                          */
 #define EV_FLAGS_THREAD_SPECIFIC   (1)       /*< プロセス内の他のスレッドに引き継がない  */
 
+/** システム定義イベント
+ */
 #define EV_SIG_HUP      (1)
 #define EV_SIG_INT      (2)
 #define EV_SIG_QUIT     (3)

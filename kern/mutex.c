@@ -32,7 +32,7 @@ mutex_init(mutex *mtx, mutex_flags mtx_flags){
 	kassert( mtx != NULL );
 
 	spinlock_init( &mtx->lock );
-	sync_init_object( &mtx->mutex_waiter, SYNC_WAKE_FLAG_ALL);
+	sync_init_object( &mtx->mutex_waiter, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT);
 	mtx->counter = 0;
 	mtx->owner = NULL;
 	mtx->mtx_flags = mtx_flags;
@@ -58,6 +58,7 @@ mutex_locked_by_self(mutex *mtx){
 
 	return rc;
 }
+
 bool
 mutex_lock(mutex *mtx){
 	intrflags flags;
@@ -86,10 +87,13 @@ mutex_lock(mutex *mtx){
 
 			spinlock_unlock_restore_intr( &mtx->lock, &flags );
 
-			sched_schedule();
+			if ( thr_in_wait(current) )			
+				sched_schedule();
+
 			rc = _sync_finish_wait( &mtx->mutex_waiter, &blk );
 			if ( rc == SYNC_OBJ_DESTROYED )
-			return false;
+				return false;
+
 			spinlock_lock_disable_intr( &mtx->lock , &flags );
 		}
 	}

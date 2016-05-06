@@ -131,7 +131,7 @@ tim_wait(tim_tmout outms) {
 	init_timer_callout( &cb ); /* コールバック情報を初期化  */
 
 	 /*  同期オブジェクトを初期化  */
-	sync_init_object( &timer_obj, SYNC_WAKE_FLAG_ALL );
+	sync_init_object( &timer_obj, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT );
 
 	/*
 	 * タイムアウト情報を設定
@@ -176,11 +176,12 @@ _tim_wait_obj_no_schedule(sync_obj *obj, sync_obj *timer_objp, sync_block *obj_s
 	kassert( timer_sbp != NULL );
 	kassert( obj_sbp != NULL );
 	kassert( cbp != NULL );
-
+	kassert( valid_wait_status(obj->wait_kind) );
+	
 	init_timer_callout( cbp ); /* コールバック情報を初期化  */
 
 	/*  タイムアウト用同期オブジェクトを初期化  */
-	sync_init_object( timer_objp, SYNC_WAKE_FLAG_ALL ); 
+	sync_init_object( timer_objp, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT ); 
 	_sync_init_block( timer_sbp );  /*  タイムアウト用同期ブロックを初期化  */
 	_sync_init_block( obj_sbp );    /*  オブジェクト待ち用同期ブロックを初期化  */
 
@@ -192,10 +193,10 @@ _tim_wait_obj_no_schedule(sync_obj *obj, sync_obj *timer_objp, sync_block *obj_s
 	cbp->callout = timeout_handler;
 	cbp->data = timer_objp;
 
-	/* キューに入れる前に自スレッドの状態をTHR_TSTATE_WAIT(資源待ち)に設定し, 
+	/* キューに入れる前に自スレッドの状態を資源待ちに設定し, 
 	 * タイムアウトや資源開放とのレースコンディションを避ける  
 	 */
-	current->status = THR_TSTATE_WAIT;  
+	current->status = obj->wait_kind;
 
 	spinlock_lock_disable_intr( &timer_callout_queue.lock, &flags ); 
 	/*  自スレッドをタイマオブジェクトのキューに登録  */
@@ -228,12 +229,10 @@ _tim_finish_wait_obj(sync_obj *obj, sync_obj *timer_objp, sync_block *obj_sbp, s
 	/*
 	 * イベントが来ている場合は, イベントによる起床を起床要因に仮設定する
 	 */
-	if ( ev_has_pending_events(current) ) {
+	if ( ev_has_pending_events(current) ) 
 		res = SYNC_WAI_DELIVEV;  /*  イベントによる起床  */
-	}
-
-	/*
-	 * 同期オブジェクトとタイマのキューから自スレッドを削除
+	
+	/* 同期オブジェクトとタイマのキューから自スレッドを削除
 	 */
 	spinlock_lock_disable_intr( &obj->lock, &flags );   
 	if ( obj_sbp->reason != SYNC_WAI_WAIT  ) 
@@ -276,8 +275,11 @@ tim_wait_obj(sync_obj *obj, tim_tmout outms) {
 
 	kassert(obj != NULL);
 
-	_tim_wait_obj_no_schedule(obj, &timer_obj, &obj_sb, &timer_sb, &cb, outms);
-	sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
+	_tim_wait_obj_no_schedule(obj, &timer_obj, &obj_sb, &timer_sb, &cb, outms );
+
+	if ( thr_in_wait(current) )
+		sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
+
 	return _tim_finish_wait_obj(obj, &timer_obj, &obj_sb, &timer_sb, &cb);
 }
 
