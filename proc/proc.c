@@ -33,9 +33,34 @@
 #include <proc/proc-internal.h>
 
 /* 停止プロセス  */
-static proc_queue proc_dormant_queue = __PROC_QUEUE_INITIALIZER( &proc_dormant_queue.que );
+static proc_dic proc_dormant_dic = __PROC_DIC_INITIALIZER( &proc_dormant_dic.booking );
 /* 動作中プロセス */
-static proc_queue proc_active_queue = __PROC_QUEUE_INITIALIZER( &proc_active_queue.que );
+static proc_dic proc_active_dic = __PROC_DIC_INITIALIZER( &proc_active_dic.booking );
+
+static int proc_id_cmp(struct _proc *_a, struct _proc *_b);
+
+RB_GENERATE_STATIC(proc_dic, _proc, mnode, proc_id_cmp);
+
+/** プロセスをPIDをキーに比較する
+    @param[in] a 比較対象のプロセス1
+    @param[in] b 比較対象のプロセス2
+    @retval 0  両者のプロセスIDが等しい
+    @retval 負 プロセス1のIDのほうが小さい
+    @retval 正 プロセス1のIDのほうが大きい
+ */
+static int 
+proc_id_cmp(struct _proc *a, struct _proc *b) {
+
+	kassert( (a != NULL) && (b != NULL) );
+
+	if ( a->pid < b->pid )
+		return -1;
+
+	if ( a->pid > b->pid )
+		return 1;
+
+	return 0;
+}
 
 /** コマンドライン解析器の状態
  */
@@ -449,6 +474,7 @@ proc_create(proc **procp, thr_prio prio, char *cmdline, const char *environ[], v
 	int          rc;
 	intrflags flags;
 	proc         *p;
+	proc       *res;
 	thread     *thr;
 	int   proc_argc;
 	void *proc_argv;
@@ -514,9 +540,10 @@ proc_create(proc **procp, thr_prio prio, char *cmdline, const char *environ[], v
 	p->pid = thr->tid;  /*  最初スレッドのIDをプロセスIDに設定  */
 
         /* 停止プロセスキューに追加 */
-	spinlock_lock_disable_intr( &proc_dormant_queue.lock, &flags );
-	queue_add( &proc_dormant_queue.que, &p->link );
-	spinlock_unlock_restore_intr( &proc_dormant_queue.lock, &flags );
+	spinlock_lock_disable_intr( &proc_dormant_dic.lock, &flags );
+	res = RB_INSERT(proc_dic, &proc_dormant_dic.booking, p);
+	kassert( res == NULL );
+	spinlock_unlock_restore_intr( &proc_dormant_dic.lock, &flags );
 
 	*procp = p;
 	
@@ -581,19 +608,21 @@ int
 proc_start(proc *p) {
 	int          rc;
 	intrflags flags;
-	
+	proc       *res;
+
 	if ( p->status != PROC_PSTATE_DORMANT )
 		return -EBUSY;
 
         /* 停止プロセスキューから削除 */
-	spinlock_lock_disable_intr( &proc_dormant_queue.lock, &flags );
-	list_del( &p->link );
-	spinlock_unlock_restore_intr( &proc_dormant_queue.lock, &flags );
+	spinlock_lock_disable_intr( &proc_dormant_dic.lock, &flags );
+	RB_REMOVE(proc_dic, &proc_dormant_dic.booking, p);
+	spinlock_unlock_restore_intr( &proc_dormant_dic.lock, &flags );
 	
 	/*  実行中キューに追加  */
-	spinlock_lock_disable_intr( &proc_active_queue.lock, &flags );
-	queue_add( &proc_active_queue.que, &p->link );
-	spinlock_unlock_restore_intr( &proc_active_queue.lock, &flags );
+	spinlock_lock_disable_intr( &proc_active_dic.lock, &flags );
+	res = RB_INSERT(proc_dic, &proc_active_dic.booking, p);
+	kassert( res == NULL );
+	spinlock_unlock_restore_intr( &proc_active_dic.lock, &flags );
 
 	p->status = PROC_PSTATE_ACTIVE;  /* プロセスを動作中に遷移する  */
 	
@@ -626,15 +655,15 @@ proc_destroy(proc *p){
 	if ( p->status == PROC_PSTATE_ACTIVE ) {
 
 		/*  実行中キューから除去  */
-		spinlock_lock_disable_intr( &proc_active_queue.lock, &flags );
-		list_del( &p->link );
-		spinlock_unlock_restore_intr( &proc_active_queue.lock, &flags );
+		spinlock_lock_disable_intr( &proc_active_dic.lock, &flags );
+		RB_REMOVE(proc_dic, &proc_active_dic.booking, p);
+		spinlock_unlock_restore_intr( &proc_active_dic.lock, &flags );
 	} else if ( p->status == PROC_PSTATE_DORMANT ) {
 		
 		/*  休止キューから除去  */
-		spinlock_lock_disable_intr( &proc_dormant_queue.lock, &flags );
-		list_del( &p->link );
-		spinlock_unlock_restore_intr( &proc_dormant_queue.lock, &flags );
+		spinlock_lock_disable_intr( &proc_dormant_dic.lock, &flags );
+		RB_REMOVE(proc_dic, &proc_dormant_dic.booking, p);
+		spinlock_unlock_restore_intr( &proc_dormant_dic.lock, &flags );
 	}
 
 	p->status = PROC_PSTATE_EXIT; /* これ以降スレッドを追加できないようにする  */
@@ -653,13 +682,23 @@ error_out:
 	return rc;
 }
 
+/** 動作中プロセスのロックを獲得していることを確認する
+    @retval 真 動作中プロセスのロックを獲得している
+    @retval 偽 動作中プロセスのロックを獲得していない
+ */
+bool
+active_proc_locked_by_self(void) {
+
+	return spinlock_locked_by_self( &proc_active_dic.lock );
+}
+
 /** 動作中プロセスのロックを獲得
     @param[in] flags 割込禁止状態保存領域
  */
 void 
 acquire_active_proc_lock(intrflags *flags) {
 
-	spinlock_lock_disable_intr( &proc_active_queue.lock, flags );
+	spinlock_lock_disable_intr( &proc_active_dic.lock, flags );
 }
 
 /** 動作プロセスのロックを解放
@@ -668,6 +707,6 @@ acquire_active_proc_lock(intrflags *flags) {
 void 
 release_active_proc_lock(intrflags *flags) {
 
-	spinlock_unlock_restore_intr( &proc_active_queue.lock, flags );
+	spinlock_unlock_restore_intr( &proc_active_dic.lock, flags );
 }
 

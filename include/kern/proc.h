@@ -17,6 +17,7 @@
 #include <kern/param.h>
 #include <kern/assert.h>
 #include <kern/kern_types.h>
+#include <kern/rbtree.h>
 #include <kern/queue.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
@@ -36,33 +37,34 @@ struct _vma;
 /** プロセス
  */
 typedef struct _proc{
-	spinlock          lock;  /*< プロセス全体のロック          */
-	list              link;  /*< リンク情報                    */
-	pid                pid;  /*< プロセスID                    */
-	proc_state      status;  /*< プロセスの状態                */
-	void            *entry;  /*< 開始アドレス                  */
-	vm                  vm;  /*< 仮想アドレス空間              */
-	struct _thread *master;  /*< マスタスレッド                */
-	queue          threads;  /*< プロセス内のスレッド群        */
-	event_queue      evque;  /*< イベントキュー                */
-	void      *u_evhandler;  /*< 共通イベントハンドラアドレス  */
-	struct _vma      *text;  /*< テキストの仮想メモリ領域      */
-	struct _vma      *data;  /*< データの仮想メモリ領域        */
-	struct _vma      *heap;  /*< ヒープの仮想メモリ領域        */
-	struct _vma     *stack;  /*< スタックの仮想メモリ領域      */
+	spinlock            lock;  /*< プロセス全体のロック          */
+	list                link;  /*< リンク情報                    */
+	RB_ENTRY(_proc)    mnode;  /*< プロセス一覧の赤黒木のノード  */
+	pid                  pid;  /*< プロセスID                    */
+	proc_state        status;  /*< プロセスの状態                */
+	void              *entry;  /*< 開始アドレス                  */
+	vm                    vm;  /*< 仮想アドレス空間              */
+	struct _thread   *master;  /*< マスタスレッド                */
+	queue            threads;  /*< プロセス内のスレッド群        */
+	event_queue        evque;  /*< イベントキュー                */
+	void        *u_evhandler;  /*< 共通イベントハンドラアドレス  */
+	struct _vma        *text;  /*< テキストの仮想メモリ領域      */
+	struct _vma        *data;  /*< データの仮想メモリ領域        */
+	struct _vma        *heap;  /*< ヒープの仮想メモリ領域        */
+	struct _vma       *stack;  /*< スタックの仮想メモリ領域      */
 }proc;
 
-/**  プロセスキュー
+/** プロセス辞書
  */
-typedef struct _proc_queue{
-	spinlock lock;  /*<  プロセスキューのロック  */
-	queue     que;  /*<  プロセスキュー          */
-}proc_queue;
+typedef struct _proc_dic{
+	spinlock                     lock;  /*< 辞書排他用のロック    */
+	RB_HEAD(proc_dic, _proc) booking;  /*< プロセス一覧のヘッド  */
+}proc_dic;
 
-#define __PROC_QUEUE_INITIALIZER(_que)				\
+#define __PROC_DIC_INITIALIZER(root)				\
 	{							\
 	.lock=__SPINLOCK_INITIALIZER,			        \
-	.que = __QUEUE_INITIALIZER(_que),	                \
+	.booking = RB_INITIALIZER(root),                        \
 	}
 
 int proc_create(proc **_procp, thr_prio prio, char *cmdline, 
@@ -71,6 +73,7 @@ int proc_start(proc *_proc);
 int proc_destroy(proc *_proc);
 int proc_expand_stack(proc *_p, void *_new_top);
 int proc_expand_heap(proc *_p, void *_new_heap_end, void **_old_heap_endp);
+bool active_proc_locked_by_self(void);
 void acquire_active_proc_lock(intrflags *_flags);
 void release_active_proc_lock(intrflags *_flags);
 
