@@ -48,7 +48,7 @@ ev_queue_init(event_queue *que){
 		queue_init( &que->que[i] );
 }
 
-/** 未配送のイベントを開放する
+/** 未配送のイベントを解放する
     @param[in] que 操作対象のキュー
  */
 void
@@ -64,155 +64,20 @@ ev_free_pending_events(event_queue *que){
 	spinlock_lock_disable_intr( &que->lock, &flags );
 	for( i = 0; EV_NR_EVENT > i ; ++i) {
 
-		for( li = queue_ref_top(&que->que[i]);
+		for( li = queue_ref_top( &que->que[i] );
 		     li != (list *)&que->que[i];
 		     li = next) {
 
 			next = li->next;
 
-			list_del(li);
-			node =CONTAINER_OF(li , event_node, link);
-			kfree(node);
+			list_del( li );
+			node =CONTAINER_OF(li, event_node, link);
+			kfree( node );
 		}
 	}
 	spinlock_unlock_restore_intr( &que->lock, &flags );
 }
 
-/** プロセスにシグナルを送る
-    @param[in] p      配送先プロセス
-    @param[in] node   シグナルノード
-    @retval    0      正常配送完了
-    @retval   -ENOENT マスクしていない配送先がおらず自身がマスタスレッドだった
- */
-int
-ev_send_to_process(proc *p, event_node *node) {
-	list        *tli;
-	thread      *thr;	
-	intrflags  flags;
-
-	kassert( spinlock_locked_by_self( &p->lock ) );
-
-	/*
-	 * 配送先スレッドを特定する
-	 */
-	for( tli = queue_ref_top( &p->threads );
-	     tli != (list *)&p->threads;
-	     tli = tli->next) {
-		
-		thr = CONTAINER_OF(tli,thread, plink);
-		
-		/*  対象イベントをマスクしている場合は除外  */
-		if ( ev_mask_test(&thr->evque.masks, node->info.no) )
-			continue;  
-		
-		goto found;  /*  配送先が見つかった  */
-	}
-		
-	thr = current->p->master;  /*  マスターに配送 */
-
-found:
-	/*
-	 * イベントを配送
-	 */
-	spinlock_lock_disable_intr( &thr->evque.lock, &flags );
-	queue_add( &thr->evque.que[node->info.no], &node->link);  /*  追加  */
-	spinlock_unlock_restore_intr( &thr->evque.lock, &flags );
-
-	return 0;
-}
-
-
-/** カレントスレッド終了時の未処理イベントを回送
-    @param[in] p 
- */
-void
-ev_handle_exit_thread_events(void) {
-	int            i;
-	int           rc;
-	list         *li;
-	list       *next;
-	event_node *node;
-
-	kassert( current->status == THR_TSTATE_EXIT );
-	kassert( spinlock_locked_by_self( &current->p->lock ) );
-
-	for( i = 0; EV_NR_EVENT > i ; ++i) {
-
-		for( li = queue_ref_top( &current->evque.que[i]);
-		     li != (list *)&current->evque.que[i];
-		     li = next) {
-			
-			next = li->next;
-			node = CONTAINER_OF(li, event_node, link);
-			list_del( li );
-
-			if ( ( current == current->p->master ) || 
-			    ( node->info.flags & EV_FLAGS_THREAD_SPECIFIC ) ) {
-				
-				/* 自身が最終スレッドだった場合や
-				 * スレッド固有イベントの場合は, 
-				 * 即時にイベントを破棄する  
-				 */
-				kfree( node );
-				continue;  
-			}
-			
-			/*
-			 * イベントを他スレッドに配送
-			 */
-			rc = ev_send_to_process(current->p, node);
-			if ( rc != 0 )
-				kfree( node );  /*  配送失敗時は, イベントを破棄  */
-		}
-	}
-}
-
-/** イベントマスクを取得する
-    @param[in] mask 取得したマスクの返却先
- */
-void
-ev_get_mask(event_mask *mask) {
-	intrflags flags;
-
-	kassert( mask != NULL );
-
-	spinlock_lock_disable_intr( &current->evque.lock, &flags );
-	memcpy(mask, &current->evque.masks, sizeof( event_mask ) );
-	spinlock_unlock_restore_intr( &current->evque.lock, &flags );	
-}
-
-/** 自スレッドのマスクを設定する
-    @param[in] mask 設定するマスク
- */
-void
-ev_update_mask(event_mask *mask){
-	intrflags flags;
-
-	kassert( mask != NULL );
-
-	spinlock_lock_disable_intr( &current->evque.lock, &flags );
-	memcpy(&current->evque.masks, mask, sizeof( event_mask ) );
-	spinlock_unlock_restore_intr( &current->evque.lock, &flags );	
-}
-
-/** 未配送のイベントがあることを確認する
-    @param[in] thr 確認対象のスレッド
-    @retval    真  未配送のイベントがある
-    @retval    偽  未配送のイベントがない
- */
-bool
-ev_has_pending_events(thread *thr){
-	bool         rc;
-	intrflags flags;
-
-	kassert( thr != NULL );
-
-	spinlock_lock_disable_intr( &thr->evque.lock, &flags );
-	rc = ev_mask_empty( &thr->evque.events );
-	spinlock_unlock_restore_intr( &thr->evque.lock, &flags );
-
-	return !rc;
-}
 /** イベントを送信する
     @param[in] dest  送信先スレッド
     @param[in] node  イベント情報のノード
@@ -272,23 +137,187 @@ error_out:
 	return rc;
 }
 
-/** イベントを取り出す
+/** プロセス内の全スレッドにシグナルを送る
+    @param[in] p      配送先プロセス
+    @param[in] node   シグナルノード
+    @retval    0      正常配送完了
+    @retval   -ENOMEM メモリ不足による配信失敗
+ */
+int
+ev_send_to_all_threads_in_process(proc *p, event_node *node) {
+	int           rc;
+	list         *li;
+	thread      *thr;
+	event_node  *new;
+	intrflags  flags;
+
+	kassert( p != NULL );
+	kassert( node != NULL );
+
+	spinlock_lock_disable_intr( &p->lock, &flags );
+	for( li = queue_ref_top( &p->threads );
+	     li != (list *)&p->threads;
+	     li = li->next) {
+
+		thr = CONTAINER_OF(li, thread, plink);
+
+		/*  イベント情報のコピーを作成し, 各スレッドに配送  */
+		rc = ev_alloc_node( node->info.no, &new );
+		if ( rc != 0 )
+			goto unlock_out;
+
+		memcpy( &new->info, &node->info, sizeof(evinfo) );
+
+		rc = ev_send(thr->tid, new);
+		if ( rc != 0 ) {  /*  配送失敗  */
+			
+			kfree(new);
+			goto unlock_out;
+		}
+	}
+
+unlock_out:
+	spinlock_unlock_restore_intr( &p->lock, &flags );
+
+	return rc;
+}
+
+/** プロセスにシグナルを送る
+    @param[in] p      配送先プロセス
+    @param[in] node   シグナルノード
+ */
+void
+ev_send_to_process(proc *p, event_node *node) {
+	intrflags  flags;
+
+	kassert( p != NULL );
+	kassert( node != NULL );
+	kassert( spinlock_locked_by_self( &p->lock ) );
+
+	spinlock_lock_disable_intr( &p->evque.lock, &flags );
+	queue_add( &p->evque.que[node->info.no], &node->link);  /*  キューに追加  */
+	spinlock_unlock_restore_intr( &p->evque.lock, &flags );
+
+	return;
+}
+
+/** カレントスレッド終了時の未処理イベントを回送
+ */
+void
+ev_handle_exit_thread_events(void) {
+	int            i;
+	list         *li;
+	list       *next;
+	event_node *node;
+
+	kassert( current->status == THR_TSTATE_EXIT );
+	kassert( spinlock_locked_by_self( &current->p->lock ) );
+
+	for( i = 0; EV_NR_EVENT > i ; ++i) {
+
+		for( li = queue_ref_top( &current->evque.que[i]);
+		     li != (list *)&current->evque.que[i];
+		     li = next) {
+			
+			next = li->next;
+			node = CONTAINER_OF(li, event_node, link);
+			list_del( li );
+
+			if ( ( current == current->p->master ) || 
+			    ( node->info.flags & EV_FLAGS_THREAD_SPECIFIC ) ) {
+				
+				/* 自身が最終スレッドだった場合や
+				 * スレッド固有イベントの場合は, 
+				 * 即時にイベントを破棄する  
+				 */
+				kfree( node );
+				continue;  
+			}
+			
+			/*
+			 * イベントをプロセスのイベントキューに配送
+			 */
+			ev_send_to_process(current->p, node);
+		}
+	}
+}
+
+/** イベントマスクを取得する
+    @param[in] mask 取得したマスクの返却先
+ */
+void
+ev_get_mask(event_mask *mask) {
+	intrflags flags;
+
+	kassert( mask != NULL );
+
+	spinlock_lock_disable_intr( &current->evque.lock, &flags );
+	memcpy(mask, &current->evque.masks, sizeof( event_mask ) );
+	spinlock_unlock_restore_intr( &current->evque.lock, &flags );	
+}
+
+/** 自スレッドのマスクを設定する
+    @param[in] mask 設定するマスク
+ */
+void
+ev_update_mask(event_mask *mask){
+	intrflags flags;
+
+	kassert( mask != NULL );
+
+	spinlock_lock_disable_intr( &current->evque.lock, &flags );
+	memcpy(&current->evque.masks, mask, sizeof( event_mask ) );
+	spinlock_unlock_restore_intr( &current->evque.lock, &flags );	
+}
+
+/** 未配送のイベントがあることを確認する
+    @param[in] thr 確認対象のスレッド
+    @retval    真  未配送のイベントがある
+    @retval    偽  未配送のイベントがない
+ */
+bool
+ev_has_pending_events(thread *thr){
+	bool         rc;
+	intrflags flags;
+
+	kassert( thr != NULL );
+
+	/*
+	 * プロセスのイベントキューから探す
+	 */
+	spinlock_lock_disable_intr( &thr->p->evque.lock, &flags );
+	rc = ev_mask_empty( &thr->p->evque.events );
+	spinlock_unlock_restore_intr( &thr->p->evque.lock, &flags );
+
+	if ( rc == false ) {
+
+		/*
+		 * 自スレッドのキューから探す
+		 */
+		spinlock_lock_disable_intr( &thr->evque.lock, &flags );
+		rc = ev_mask_empty( &thr->evque.events );
+		spinlock_unlock_restore_intr( &thr->evque.lock, &flags );
+	}	
+	return !rc;
+}
+
+/** 所定のイベントキューからイベントを取り出す
+    @param[in] evque   イベントキュー
     @param[in] nodep   イベントノードのアドレスを格納する領域
     @retval    0       取得完了
     @retval   -ENOENT  イベントキューが空だった
  */
 int
-ev_dequeue(event_node **nodep) {
+dequeue_from_evque_nolock(event_queue *evque, event_node **nodep) {
 	int               rc;
-	intrflags      flags;
 	event_mask       tmp;
 	event_mask   deliver;
 	event_id          id;
 
-	kassert( nodep != NULL);
+	kassert( evque != NULL );
+	kassert( nodep != NULL );
+	kassert( spinlock_locked_by_self( &evque->lock ) );	
 
-	spinlock_lock_disable_intr( &current->evque.lock, &flags );
-	
 	/*
 	 * 送信可能な（マスクされていない)イベントの番号を取得する
 	 */
@@ -300,19 +329,49 @@ ev_dequeue(event_node **nodep) {
 	
 	rc = ev_mask_find_first_bit(&deliver, &id);
 	if ( rc != 0 )
-		goto unlock_out;
+		return rc;  /*  イベントが来ていない  */
 	
 	kassert( id < EV_NR_EVENT );
 	kassert( !queue_is_empty( &current->evque.que[id] ) );
 	
 	*nodep = CONTAINER_OF(queue_get_top( &current->evque.que[id] ), 
 	    event_node, link);
-	
+
+	/*  キューにつながっているイベントがなくなったら保留中ビットを落とす  */
 	if ( queue_is_empty( &current->evque.que[id] ) ) 
 		ev_mask_unset(&current->evque.events, id);
 
-unlock_out:
+	return 0;
+}
+
+/** イベントを取り出す
+    @param[in] nodep   イベントノードのアドレスを格納する領域
+    @retval    0       取得完了
+    @retval   -ENOENT  イベントキューが空だった
+ */
+int
+ev_dequeue(event_node **nodep) {
+	int               rc;
+	intrflags      flags;
+
+	kassert( nodep != NULL );
+
+	/*
+	 * プロセスのキューから検索する
+	 */
+	spinlock_lock_disable_intr( &current->p->evque.lock, &flags );
+	rc = dequeue_from_evque_nolock( &current->p->evque, nodep);
+	spinlock_unlock_restore_intr( &current->p->evque.lock, &flags );	
+
+	if ( rc == 0 )
+		return 0;
+	/*
+	 * プロセスのキューになければスレッドのキューから検索
+	 */
+	spinlock_lock_disable_intr( &current->evque.lock, &flags );
+	rc = dequeue_from_evque_nolock( &current->evque, nodep);
 	spinlock_unlock_restore_intr( &current->evque.lock, &flags );	
+
 	return rc;
 }
 

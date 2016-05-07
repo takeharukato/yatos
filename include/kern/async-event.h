@@ -149,17 +149,15 @@ void ev_mask_unset(event_mask *_maskp, event_id _id);
 void ev_mask_xor(event_mask *_mask1, event_mask *_mask2, event_mask *_maskp);
 void ev_mask_and(event_mask *_mask1, event_mask *_mask2, event_mask *_maskp);
 void ev_mask_fill(event_mask *_mask);
-int ev_mask_find_first_bit(event_mask *_mask, event_id *_valp);
+int  ev_mask_find_first_bit(event_mask *_mask, event_id *_valp);
 
-int ev_send(tid _dest, event_node *_node);
-int ev_dequeue(event_node **_nodep);
+int  ev_send(tid _dest, event_node *_node);
+void ev_send_to_process(struct _proc *_p, event_node *_node);
+int  ev_send_to_all_threads_in_process(struct _proc *_p, event_node *_node);
+int  ev_dequeue(event_node **_nodep);
 bool ev_has_pending_events(struct _thread *_thr);
-int ev_send_to_process(struct _proc *_p, event_node *_node);
+int  ev_alloc_node(event_id id, event_node **nodep);
 void ev_handle_exit_thread_events(void);
-int ev_alloc_node(event_id id, event_node **nodep);
-void ev_fill_sigill(evinfo *_info, event_code _code, void *_uvaddr);
-void ev_fill_sigfpe(evinfo *_info, event_code _code, void *_uvaddr);
-void ev_fill_sigsegv(evinfo *_info, event_code _code, void *_uvaddr);
 
-int kcom_handle_system_event(event_node *_node);
+int  kcom_handle_system_event(event_node *_node);
 #endif  /*  _KERN_ASYNC_EVENT_H   */

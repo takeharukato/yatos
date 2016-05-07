@@ -26,47 +26,6 @@
 #include <kern/list.h>
 #include <kern/page.h>
 
-/** EV_SIG_SIGSEGVの情報を設定する
-   @param[in] 設定対象のイベント情報
-   @param[in] イベントコード
-   @param[in] 発生元アドレス
- */
-void
-ev_fill_sigsegv(evinfo *info, event_code code, void *uvaddr){
-
-	kassert( info != NULL );
-
-	info->code = code;
-	info->ev_addr = uvaddr;
-}
-/** EV_SIG_SIGFPEの情報を設定する
-   @param[in] 設定対象のイベント情報
-   @param[in] イベントコード
-   @param[in] 発生元アドレス
- */
-void
-ev_fill_sigfpe(evinfo *info, event_code code, void *uvaddr){
-
-	kassert( info != NULL );
-
-	info->code = code;
-	info->ev_addr = uvaddr;
-}
-
-/** EV_SIG_SIGILLの情報を設定する
-   @param[in] 設定対象のイベント情報
-   @param[in] イベントコード
-   @param[in] 発生元アドレス
- */
-void
-ev_fill_sigill(evinfo *info, event_code code, void *uvaddr){
-
-	kassert( info != NULL );
-
-	info->code = code;
-	info->ev_addr = uvaddr;
-}
-
 /** イベントノードを割当てる
     @param[in]  id     割り当てるイベントID
     @param[out] nodep  イベントノードアドレス格納先

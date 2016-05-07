@@ -23,4 +23,5 @@
 
 struct _proc;
 int _proc_load_ELF_from_memory(struct _proc *_proc, void *_kvaddr);
+void _proc_common_init(struct _proc *p);
 #endif  /*  __PROC_INTERNAL_H   */

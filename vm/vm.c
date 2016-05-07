@@ -688,11 +688,6 @@ vm_init(vm *as, proc *p){
 	kassert( as != NULL );
 	kassert( p != NULL );
 
-	/*  仮想空間のmutexを初期化する                */
-	mutex_init( &as->asmtx, MTX_FLAG_EXCLUSIVE);  
-	as->p = p;                   /*  仮想空間の所属先プロセスを設定する          */
-	RB_INIT(&as->vma_head);      /*  仮想空間の仮想メモリ領域ツリーを初期化する  */
-
         /*
 	 *  プロセス空間にユーザページテーブルディレクトリを割り当てる 
 	 */

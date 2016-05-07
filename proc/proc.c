@@ -20,10 +20,12 @@
 #include <kern/string.h>
 #include <kern/errno.h>
 #include <kern/spinlock.h>
+#include <kern/rbtree.h>
 #include <kern/id-bitmap.h>
 #include <kern/proc.h>
 #include <kern/vm.h>
 #include <kern/thread.h>
+#include <kern/async-event.h>
 #include <kern/page.h>
 #include <kern/ctype.h>
 #include <kern/mutex.h>
@@ -413,6 +415,25 @@ proc_expand_heap(proc *p, void *new_heap_end, void **old_heap_endp) {
 
 	return rc;
 }
+/** プロセスの基本情報を初期化
+    @param[in] p  操作対象のプロセス
+ */
+void
+_proc_common_init(proc *p) {
+
+	kassert( p != NULL );
+
+	spinlock_init( &p->lock );        /*  プロセスロックを初期化                 */
+	list_init( &p->link );            /*  プロセスリンクを初期化                 */
+	queue_init( &p->threads );        /*  プロセスロックとスレッドキューを初期化 */
+	p->pid = THR_INVALID_TID;         /*  PIDを一時的に無効なIDに設定            */
+	p->status = PROC_PSTATE_DORMANT;  /*  プロセスの状態を停止中に設定           */
+	ev_queue_init( &p->evque );       /*  イベントキューを初期化                 */
+	
+	mutex_init( &p->vm.asmtx, MTX_FLAG_EXCLUSIVE);      /* 仮想空間mutexの初期化 */
+	p->vm.p = p;                 /*  仮想空間の所属先プロセスを設定              */
+	RB_INIT(&p->vm.vma_head);    /*  仮想空間の仮想メモリ領域ツリーを初期化する  */
+}
 
 /** プロセスを生成する
     @param[in] procp   プロセス構造体の返却先ポインタのアドレス
@@ -444,11 +465,7 @@ proc_create(proc **procp, thr_prio prio, char *cmdline, const char *environ[], v
 
 	memset( p, 0, sizeof(proc) );
 
-	spinlock_init( &p->lock );        /*  プロセスロックを初期化                 */
-	list_init( &p->link );            /*  プロセスリンクを初期化                 */
-	queue_init( &p->threads );        /*  プロセスロックとスレッドキューを初期化 */
-	p->pid = THR_INVALID_TID;         /*  PIDを一時的に無効なIDに設定            */
-	p->status = PROC_PSTATE_DORMANT;  /*  プロセスの状態を停止中に設定           */
+	_proc_common_init(p);             /*  プロセスの基本情報の初期化             */
 	vm_init(&p->vm, p);               /*  仮想空間情報の初期化                   */
 
         /*
@@ -635,3 +652,22 @@ error_out:
 
 	return rc;
 }
+
+/** 動作中プロセスのロックを獲得
+    @param[in] flags 割込禁止状態保存領域
+ */
+void 
+acquire_active_proc_lock(intrflags *flags) {
+
+	spinlock_lock_disable_intr( &proc_active_queue.lock, flags );
+}
+
+/** 動作プロセスのロックを解放
+    @param[in] flags 割込禁止状態保存領域
+ */
+void 
+release_active_proc_lock(intrflags *flags) {
+
+	spinlock_unlock_restore_intr( &proc_active_queue.lock, flags );
+}
+

@@ -21,6 +21,8 @@
 #include <kern/cpu.h>
 #include <kern/page.h>
 
+#include <proc/proc-internal.h>
+
 extern void x86_64_prepare(uint64_t _magic, uint64_t _mbaddr);
 extern void x86_64_fxsave(void *_m);
 extern void x86_64_fxrestore(void *_m);
@@ -55,15 +57,13 @@ setup_current_gdt_tss(void) {
 static void
 x86_64_init_kernel_proc(void *kpgtbl) {
 	proc *p;
-	vm  *as;
 
 	p = &kproc;
 	memset(p, 0, sizeof(proc));
 
-	as = &p->vm;
-	mutex_init( &as->asmtx, MTX_FLAG_RECURSIVE );
-	as->pgtbl = kpgtbl;
-	as->p = p;
+	_proc_common_init(p);
+
+	p->vm.pgtbl = kpgtbl;
 	p->pid = THR_IDLE_TID;
 
 	p->entry = (int (*)(void *)) x86_64_prepare;
