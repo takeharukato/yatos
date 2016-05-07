@@ -25,11 +25,16 @@
 #define PROC_SERV_REQ_SNDEV     (0)
 #define PROC_SERV_REQ_CRETHR    (1)
 #define PROC_SERV_REQ_GETRUSAGE (2)
-
+typedef enum _proc_serv_sendev_type{
+	PROC_SERV_SNDEV_THR=0,    /*<  スレッド固有イベント  */
+	PROC_SERV_SNDEV_PROC=1,   /*<  プロセス内共有イベント  */
+	PROC_SERV_SNDEV_ALLTHR=2, /*<  プロセス内スレッドへの同報イベント  */
+}proc_serv_sendev_type;
 typedef struct _proc_sys_send_event{
-	tid             dest;
-	event_id          id;
-	event_data      data;
+	tid                   dest;
+	proc_serv_sendev_type type;
+	event_id                id;
+	event_data            data;
 }proc_sys_send_event;
 
 typedef struct _proc_sys_create_thread{

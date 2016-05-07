@@ -600,7 +600,10 @@ enter_dead:
 
 	spinlock_unlock_restore_intr( &current->p->lock, &flags );
 
-	kassert( !ev_has_pending_events(current) );  /* 未配送イベントは無いはず    */
+	spinlock_lock_disable_intr( &current->evque.lock, &flags );
+        /*  自スレッドに未配送イベントは無い */
+	kassert( ev_mask_empty( &current->evque.events ) );  
+	spinlock_unlock_restore_intr( &current->evque.lock, &flags );
 
 	lpc_destroy_msg_queue( &current->mque );    /* メッセージキューの削除  */
 

@@ -679,6 +679,11 @@ proc_destroy(proc *p){
 
 	p->status = PROC_PSTATE_EXIT; /* これ以降スレッドを追加できないようにする  */
 
+	/*
+	 * プロセスのイベントキューの解放
+	 */
+	ev_free_pending_events( &p->evque );
+
         /*
 	 *  アドレス空間の解放
 	 */

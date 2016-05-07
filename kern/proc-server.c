@@ -32,7 +32,6 @@
 static thread *proc_service_thr;
 
 //#define DEBUG_PROC_SERVICE
-//#define DEBUG_PROC_SERVICE_
 
 #define MSG_PREFIX "PROC:"
 
@@ -45,13 +44,15 @@ static thread *proc_service_thr;
  */
 static int
 handle_send_event(proc_sys_send_event *sndev, endpoint src) {
-	int           rc;
-	thread      *thr;
-	event_node *node;
-	evinfo     *info;
-	intrflags  flags;
-	tid     src_tid;
-
+	int                rc;
+	thread           *thr;
+	thread      *dest_thr;
+	proc               *p;
+	event_node      *node;
+	evinfo          *info;
+	intrflags       flags;
+	tid           src_tid;
+	
 	acquire_all_thread_lock( &flags );
 
 	thr = thr_find_thread_by_tid_nolock(src);
@@ -70,15 +71,70 @@ handle_send_event(proc_sys_send_event *sndev, endpoint src) {
 		goto error_out;
 
 	info = &node->info;
-	info->flags = EV_FLAGS_THREAD_SPECIFIC;
 	info->sender_id = src_tid;
 	info->code = EV_SIG_SI_USER;
 	info->data = sndev->data;
 
+	switch( sndev->type ) {
+	case PROC_SERV_SNDEV_THR:
+		
+		info->flags = EV_FLAGS_THREAD_SPECIFIC;		
+		rc = ev_send(sndev->dest, node);
+		if ( rc != 0 )
+			goto free_mem_out;
+		break;
+	case PROC_SERV_SNDEV_PROC:
 
-	rc = ev_send(sndev->dest, node);
-	if ( rc != 0 )
-		goto free_mem_out;
+		acquire_all_thread_lock( &flags );
+
+		dest_thr = thr_find_thread_by_tid_nolock(sndev->dest);
+		if ( dest_thr == NULL ) {
+
+			rc = -ENOENT;
+			release_all_thread_lock(&flags);
+			goto free_mem_out;
+		}
+
+		p = dest_thr->p;
+
+		spinlock_lock( &p->lock );
+		release_all_thread_lock(&flags);
+
+		info->flags = EV_FLAGS_NONE;
+		ev_send_to_process(p, node);
+
+		spinlock_unlock( &p->lock );
+
+		rc = 0;
+		break;
+	case PROC_SERV_SNDEV_ALLTHR:
+		acquire_all_thread_lock( &flags );
+
+		dest_thr = thr_find_thread_by_tid_nolock(sndev->dest);
+		if ( dest_thr == NULL ) {
+
+			rc = -ENOENT;
+			release_all_thread_lock(&flags);
+			goto free_mem_out;
+		}
+
+		p = dest_thr->p;
+
+		spinlock_lock( &p->lock );
+		release_all_thread_lock(&flags);
+
+		info->flags = EV_FLAGS_NONE;
+		rc = ev_send_to_all_threads_in_process(p, node);
+
+		spinlock_unlock( &p->lock );
+
+		if ( rc != 0 )
+			goto free_mem_out;
+
+		kfree(node);
+
+		break;
+	}
 
 	return 0;
 

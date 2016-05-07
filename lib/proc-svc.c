@@ -49,6 +49,86 @@ yatos_proc_send_event(tid dest, event_id  id, event_data data) {
 
 	pmsg->req = PROC_SERV_REQ_SNDEV;
 	sndev->dest = dest;
+	sndev->type = PROC_SERV_SNDEV_THR;
+	sndev->id = id;
+	sndev->data = data;	
+
+	rc = yatos_lpc_send_and_reply( ID_RESV_PROC, &msg );
+	if ( rc != 0 ) {
+
+		set_errno(rc);
+		return -1;
+	}
+
+	if ( pmsg->rc != 0 ) {
+
+		set_errno(pmsg->rc);
+		return -1;
+	}
+
+	return 0;
+}
+
+/** 指定したスレッドが所属するプロセスにイベントを送出する
+    @param[in] dest 送信先スレッドのID
+    @param[in] id   イベントID
+    @param[in] data イベントの付帯情報
+ */
+int
+yatos_proc_send_proc_event(tid dest, event_id  id, event_data data) {
+	int                      rc;
+	msg_body                msg;
+	proc_service          *pmsg;
+	proc_sys_send_event  *sndev;
+
+	pmsg= &msg.proc_msg;
+	sndev = &pmsg->proc_service_calls.sndev;
+
+	memset( &msg, 0, sizeof(msg_body) );
+
+	pmsg->req = PROC_SERV_REQ_SNDEV;
+	sndev->dest = dest;
+	sndev->type = PROC_SERV_SNDEV_PROC;
+	sndev->id = id;
+	sndev->data = data;	
+
+	rc = yatos_lpc_send_and_reply( ID_RESV_PROC, &msg );
+
+	if ( rc != 0 ) {
+
+		set_errno(rc);
+		return -1;
+	}
+
+	if ( pmsg->rc != 0 ) {
+
+		set_errno(pmsg->rc);
+		return -1;
+	}
+
+	return 0;
+}
+
+/** 指定したスレッドが所属する全スレッドにイベントを送出する
+    @param[in] dest 送信先スレッドのID
+    @param[in] id   イベントID
+    @param[in] data イベントの付帯情報
+ */
+int
+yatos_proc_bcast_proc_event(tid dest, event_id  id, event_data data) {
+	int                      rc;
+	msg_body                msg;
+	proc_service          *pmsg;
+	proc_sys_send_event  *sndev;
+
+	pmsg= &msg.proc_msg;
+	sndev = &pmsg->proc_service_calls.sndev;
+
+	memset( &msg, 0, sizeof(msg_body) );
+
+	pmsg->req = PROC_SERV_REQ_SNDEV;
+	sndev->dest = dest;
+	sndev->type = PROC_SERV_SNDEV_ALLTHR;
 	sndev->id = id;
 	sndev->data = data;	
 

@@ -142,6 +142,7 @@ error_out:
     @param[in] node   シグナルノード
     @retval    0      正常配送完了
     @retval   -ENOMEM メモリ不足による配信失敗
+    @note      引数nodeの指し示す領域の解放は, 呼出元で実施。
  */
 int
 ev_send_to_all_threads_in_process(proc *p, event_node *node) {
@@ -149,12 +150,11 @@ ev_send_to_all_threads_in_process(proc *p, event_node *node) {
 	list         *li;
 	thread      *thr;
 	event_node  *new;
-	intrflags  flags;
 
 	kassert( p != NULL );
 	kassert( node != NULL );
+	kassert( spinlock_locked_by_self( &p->lock ) );
 
-	spinlock_lock_disable_intr( &p->lock, &flags );
 	for( li = queue_ref_top( &p->threads );
 	     li != (list *)&p->threads;
 	     li = li->next) {
@@ -164,7 +164,7 @@ ev_send_to_all_threads_in_process(proc *p, event_node *node) {
 		/*  イベント情報のコピーを作成し, 各スレッドに配送  */
 		rc = ev_alloc_node( node->info.no, &new );
 		if ( rc != 0 )
-			goto unlock_out;
+			goto error_out;
 
 		memcpy( &new->info, &node->info, sizeof(evinfo) );
 
@@ -172,13 +172,11 @@ ev_send_to_all_threads_in_process(proc *p, event_node *node) {
 		if ( rc != 0 ) {  /*  配送失敗  */
 			
 			kfree(new);
-			goto unlock_out;
+			goto error_out;
 		}
 	}
 
-unlock_out:
-	spinlock_unlock_restore_intr( &p->lock, &flags );
-
+error_out:
 	return rc;
 }
 
@@ -188,6 +186,8 @@ unlock_out:
  */
 void
 ev_send_to_process(proc *p, event_node *node) {
+	list         *li;
+	thread      *thr;
 	intrflags  flags;
 
 	kassert( p != NULL );
@@ -196,8 +196,25 @@ ev_send_to_process(proc *p, event_node *node) {
 
 	spinlock_lock_disable_intr( &p->evque.lock, &flags );
 	queue_add( &p->evque.que[node->info.no], &node->link);  /*  キューに追加  */
+	ev_mask_set( &p->evque.events, node->info.no );
 	spinlock_unlock_restore_intr( &p->evque.lock, &flags );
 
+	for( li = queue_ref_top( &p->threads );
+	     li != (list *)&p->threads;
+	     li = li->next) {
+
+		thr = CONTAINER_OF(li, thread, plink);
+
+		if ( !ev_mask_test(&thr->evque.masks, node->info.no) ) {
+		
+			/* イベントを配送可能な場合で, 休眠条件が合えば, 
+			 * 休眠しているスレッドを起こす  
+			 */
+			if ( ( ( node->info.no == EV_SIG_KILL ) && ( thr_wait_killable(thr) ) ) ||
+			    thr_wait_intr(thr) )
+				_sched_wakeup(thr);
+		}
+	}
 	return;
 }
 
@@ -215,7 +232,7 @@ ev_handle_exit_thread_events(void) {
 
 	for( i = 0; EV_NR_EVENT > i ; ++i) {
 
-		for( li = queue_ref_top( &current->evque.que[i]);
+		for( li = queue_ref_top( &current->evque.que[i] );
 		     li != (list *)&current->evque.que[i];
 		     li = next) {
 			
@@ -239,6 +256,8 @@ ev_handle_exit_thread_events(void) {
 			 */
 			ev_send_to_process(current->p, node);
 		}
+		kassert( queue_is_empty( &current->evque.que[i] ) );
+		ev_mask_unset( &current->evque.events, i );
 	}
 }
 
@@ -286,13 +305,12 @@ ev_has_pending_events(thread *thr){
 	kassert( thr != NULL );
 
 	/*
-	 * プロセスのイベントキューから探す
+	 * プロセスのキューから探す
 	 */
 	spinlock_lock_disable_intr( &thr->p->evque.lock, &flags );
 	rc = ev_mask_empty( &thr->p->evque.events );
 	spinlock_unlock_restore_intr( &thr->p->evque.lock, &flags );
-
-	if ( rc == false ) {
+	if ( rc ) {
 
 		/*
 		 * 自スレッドのキューから探す
@@ -300,7 +318,8 @@ ev_has_pending_events(thread *thr){
 		spinlock_lock_disable_intr( &thr->evque.lock, &flags );
 		rc = ev_mask_empty( &thr->evque.events );
 		spinlock_unlock_restore_intr( &thr->evque.lock, &flags );
-	}	
+	}
+
 	return !rc;
 }
 
@@ -327,22 +346,22 @@ dequeue_from_evque_nolock(event_queue *evque, event_node **nodep) {
 	ev_mask_clr( &tmp );
 	ev_mask_clr( &deliver );
 	
-	ev_mask_xor(&current->evque.events, &current->evque.masks, &tmp);
-	ev_mask_and(&current->evque.events, &tmp, &deliver);
+	ev_mask_xor( &evque->events, &current->evque.masks, &tmp);
+	ev_mask_and( &evque->events, &tmp, &deliver);
 	
 	rc = ev_mask_find_first_bit(&deliver, &id);
 	if ( rc != 0 )
 		return rc;  /*  イベントが来ていない  */
 	
 	kassert( id < EV_NR_EVENT );
-	kassert( !queue_is_empty( &current->evque.que[id] ) );
+	kassert( !queue_is_empty( &evque->que[id] ) );
 	
-	*nodep = CONTAINER_OF(queue_get_top( &current->evque.que[id] ), 
+	*nodep = CONTAINER_OF(queue_get_top( &evque->que[id] ), 
 	    event_node, link);
 
 	/*  キューにつながっているイベントがなくなったら保留中ビットを落とす  */
-	if ( queue_is_empty( &current->evque.que[id] ) ) 
-		ev_mask_unset(&current->evque.events, id);
+	if ( queue_is_empty( &evque->que[id] ) ) 
+		ev_mask_unset( &evque->events, id );
 
 	return 0;
 }
@@ -366,7 +385,7 @@ ev_dequeue(event_node **nodep) {
 	rc = dequeue_from_evque_nolock( &current->p->evque, nodep);
 	spinlock_unlock_restore_intr( &current->p->evque.lock, &flags );	
 
-	if ( rc == 0 )
+	if ( rc == 0 ) 
 		return 0;
 	/*
 	 * プロセスのキューになければスレッドのキューから検索

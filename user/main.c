@@ -28,7 +28,6 @@ show_event_mask(event_mask *msk){
 
 int
 new_thread(void *arg) {
-	int               rc;
 	uint64_t  tsc1, tsc2;
 	event_mask       msk;
 
@@ -38,28 +37,12 @@ new_thread(void *arg) {
 	yatos_printf("[%d]: new_thread(arg=%p)\n",
 	    yatos_thread_getid(), arg);
 
-	yatos_printf("[%d]: get event mask.\n", yatos_thread_getid());
-	rc = yatos_get_event_mask( &msk );
-	yatos_printf("[%d]: get_event_mask rc=%d\n",
-	    yatos_thread_getid(), rc);
-	if ( rc == 0 )
-		show_event_mask( &msk );
-
-	yatos_printf("[%d]: create event mask.\n", yatos_thread_getid());
+	yatos_printf("[%d]: unset event mask EV_SIG_USR1.\n", yatos_thread_getid());
+	yatos_get_event_mask( &msk );
 	ev_mask_unset( &msk, EV_SIG_USR1);
+	yatos_set_event_mask( &msk );
+	yatos_get_event_mask( &msk );
 	show_event_mask( &msk );
-
-	yatos_printf("[%d]: set event mask.\n", yatos_thread_getid());
-	rc = yatos_set_event_mask( &msk );
-	yatos_printf("[%d]: set_event_mask rc=%d\n",
-	    yatos_thread_getid(), rc);
-
-	yatos_printf("[%d]: get event mask.\n", yatos_thread_getid());
-	rc = yatos_get_event_mask( &msk );
-	yatos_printf("[%d]: get_event_mask rc=%d\n",
-	    yatos_thread_getid(), rc);
-	if ( rc == 0 )
-		show_event_mask( &msk );
 
 	thr_flag=1;
 
@@ -179,29 +162,13 @@ main(int argc, char *argv[]){
 	/*
 	 * イベントマスクの獲得/設定
 	 */
-	yatos_printf("[%d]: get event mask.\n", yatos_thread_getid());
-	rc = yatos_get_event_mask( &msk );
-	yatos_printf("[%d]: get_event_mask rc=%d\n",
-	    yatos_thread_getid(), rc);
-	if ( rc == 0 )
-		show_event_mask( &msk );
-
-	yatos_printf("[%d]: create event mask.\n", yatos_thread_getid());
+	yatos_printf("[%d]: set event full mask.\n", yatos_thread_getid());
+	yatos_get_event_mask( &msk );
 	ev_mask_fill(&msk);
+	yatos_set_event_mask( &msk );
+	yatos_get_event_mask( &msk );
 	show_event_mask( &msk );
 
-	yatos_printf("[%d]: set event mask.\n", yatos_thread_getid());
-	rc = yatos_set_event_mask( &msk );
-	yatos_printf("[%d]: set_event_mask rc=%d\n",
-	    yatos_thread_getid(), rc);
-
-	yatos_printf("[%d]: get event mask.\n", yatos_thread_getid());
-	rc = yatos_get_event_mask( &msk );
-	yatos_printf("[%d]: get_event_mask rc=%d\n",
-	    yatos_thread_getid(), rc);
-	if ( rc == 0 )
-		show_event_mask( &msk );
-	
 	/*
 	 * 子スレッド生成デモ
 	 */
@@ -229,21 +196,36 @@ main(int argc, char *argv[]){
 	    yatos_thread_getid());
 	while( thr_flag == 0 )
 		yatos_thread_yield();
+
+	yatos_printf("[%d]: unset event mask EV_SIG_USR2.\n", yatos_thread_getid());
+	ev_mask_unset( &msk, EV_SIG_USR2);
+	yatos_set_event_mask( &msk );
+	yatos_get_event_mask( &msk );
+	show_event_mask( &msk );
+	
 	/*
 	 * 非同期イベント処理のデモ
 	 */
 	yatos_register_user_event_handler(EV_SIG_USR1, user_handler);
+	yatos_register_user_event_handler(EV_SIG_USR2, user_handler);
+
 	yatos_printf("[%d]: send event (id, data)=(%d, %p) \n",
 	    yatos_thread_getid(), EV_SIG_USR1, (void *)0xdeaddead);
 	rc = yatos_proc_send_event(newid, EV_SIG_USR1,
 	    (void *)0xdeaddead);
 	yatos_printf("[%d]: send event rc = %d \n", yatos_thread_getid(), rc);
 
-	yatos_printf("[%d]: send event (id, data)=(%d, %p) \n",
+	/*  プロセス共有イベント  */
+	yatos_printf("[%d]: send proc event (id, data)=(%d, %p) \n",
 	    yatos_thread_getid(), EV_SIG_USR2, (void *)0xdeadbeef);
-	rc = yatos_proc_send_event(newid, EV_SIG_USR2,
+	rc = yatos_proc_send_proc_event(newid, EV_SIG_USR2,
 	    (void *)0xdeadbeef);
 	yatos_printf("[%d]: send event rc = %d \n", yatos_thread_getid(), rc);
+
+	yatos_printf("[%d]: send proc broad cast event (id, data)=(%d, %p) \n",
+	    yatos_thread_getid(), EV_SIG_USR1, (void *)0xdead);
+	rc = yatos_proc_bcast_proc_event(newid, EV_SIG_USR1,
+	    (void *)0xdead);
 
 	thr_flag = 2;
 
@@ -255,6 +237,16 @@ main(int argc, char *argv[]){
 	rc = yatos_thread_wait(newid, THR_WAIT_ANY, &chldid, &code);
 	yatos_printf("[%d]: wait-thread rc=%d id=%d code=%d\n",
 	    yatos_thread_getid(), rc, chldid, code);
+
+	/*
+	 * 保留していたブロードキャストの受信
+	 */
+	yatos_printf("[%d]: unset event mask of EV_SIG_USR1.\n", yatos_thread_getid());
+	yatos_get_event_mask( &msk );
+	ev_mask_unset( &msk, EV_SIG_USR1);
+	yatos_set_event_mask( &msk );
+	yatos_get_event_mask( &msk );
+	show_event_mask( &msk );
 
 	/*
 	 * 自スレッド消費リソース獲得処理のデモ
