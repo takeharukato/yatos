@@ -139,7 +139,7 @@ struct _thread;
 void ev_queue_init(event_queue *_que);
 void ev_free_pending_events(event_queue *_que);
 void ev_get_mask(event_mask *_mask);
-void ev_update_mask(event_mask *_mask);
+void ev_update_mask(struct _thread *_thr, event_mask *_mask);
 
 void ev_mask_clr(event_mask *_maskp);
 bool ev_mask_test(event_mask *_mask, event_id _id);

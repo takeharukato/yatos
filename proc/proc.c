@@ -31,6 +31,7 @@
 #include <kern/mutex.h>
 
 #include <proc/proc-internal.h>
+#include <vm/vm-internal.h>
 
 /* 停止プロセス  */
 static proc_dic proc_dormant_dic = __PROC_DIC_INITIALIZER( &proc_dormant_dic.booking );
@@ -395,14 +396,24 @@ setup_heap_area(proc *p){
  */
 int
 proc_expand_stack(proc *p, void *new_top){
-	int  rc;
+	int         rc;
 	void *old_addr;
+	vma      *vmap;
 
 	kassert( p != NULL );
 	kassert( p->stack != NULL );
 
 	mutex_lock( &p->vm.asmtx );
+
+	/*  アクセス可能な範囲にある場合は抜ける
+	 *   (スレッドスタックの場合に該当)
+	 */
+	rc = _vm_find_vma_nolock(&p->vm, new_top, &vmap);
+	if ( rc == 0 )
+		goto unlock_out;
+
 	rc = vm_resize_area(&p->vm, p->stack->start, new_top, &old_addr);
+unlock_out:
 	mutex_unlock( &p->vm.asmtx );
 
 	return rc;

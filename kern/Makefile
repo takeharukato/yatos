@@ -7,7 +7,7 @@ top=..
 include ${top}/Makefile.inc
 CFLAGS += -I${top}/include
 objects=main.o spinlock.o id-bitmap.o elfldr.o svc.o kname-service.o dbg-console.o \
-	system-threads.o proc-server.o vm-server.o backtrace.o mutex.o
+	system-threads.o thr-server.o proc-server.o vm-server.o backtrace.o mutex.o 
 lib=libkern.a
 
 all:${lib}

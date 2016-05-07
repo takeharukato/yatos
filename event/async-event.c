@@ -256,18 +256,21 @@ ev_get_mask(event_mask *mask) {
 	spinlock_unlock_restore_intr( &current->evque.lock, &flags );	
 }
 
-/** 自スレッドのマスクを設定する
+/** スレッドのマスクを設定する
+    @param[in] thr  設定対象のスレッド
     @param[in] mask 設定するマスク
  */
 void
-ev_update_mask(event_mask *mask){
+ev_update_mask(thread *thr, event_mask *mask){
 	intrflags flags;
 
+	kassert( all_thread_locked_by_self() );
+	kassert( thr != NULL );
 	kassert( mask != NULL );
 
-	spinlock_lock_disable_intr( &current->evque.lock, &flags );
-	memcpy(&current->evque.masks, mask, sizeof( event_mask ) );
-	spinlock_unlock_restore_intr( &current->evque.lock, &flags );	
+	spinlock_lock_disable_intr( &thr->evque.lock, &flags );
+	memcpy(&thr->evque.masks, mask, sizeof( event_mask ) );
+	spinlock_unlock_restore_intr( &thr->evque.lock, &flags );	
 }
 
 /** 未配送のイベントがあることを確認する

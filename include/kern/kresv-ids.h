@@ -19,12 +19,14 @@
 #define ID_RESV_REAPER      (1)  /*< reaperスレッド用に予約              */
 #define ID_RESV_NAME_SERV   (2)  /*< ネームサービススレッド用に予約      */
 #define ID_RESV_DBG_CONSOLE (3)  /*< デバッグコンソールサービス用に予約  */
-#define ID_RESV_PROC        (4)  /*< PROCサービス用に予約                */
-#define ID_RESV_VM          (5)  /*< VMサービス用に予約                  */
-#define ID_NR_RESVED        (6)  /*< 予約ID数                            */
+#define ID_RESV_THR         (4)  /*< THRサービス用に予約                 */
+#define ID_RESV_PROC        (5)  /*< PROCサービス用に予約                */
+#define ID_RESV_VM          (6)  /*< VMサービス用に予約                  */
+#define ID_NR_RESVED        (7)  /*< 予約ID数                            */
 #define ID_RESV_INVALID     (MAX_OBJ_ID)  /*< 不正ID  */
 
 #define ID_RESV_NAME_DBG_CONSOLE "DebugConsole"
+#define ID_RESV_NAME_THR         "ThreadService"
 #define ID_RESV_NAME_PROC        "ProcessService"
 #define ID_RESV_NAME_VM          "VMService"
 

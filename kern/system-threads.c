@@ -33,8 +33,10 @@ system_threads_init(void) {
 	_thr_init_reaper();          /*  スレッド回収処理             */
 	kernel_name_service_init();  /* カーネル内ネームサービス      */
 	dbg_console_service_init();  /* デバッグ用コンソールサービス  */
+	thr_service_init();          /* スレッドサービスコール        */
 	proc_service_init();         /* プロセスサービスコール        */
 	vm_service_init();           /* VMサービスコール              */
+
 	_setup_test_progs();
 	ti_enable_dispatch();
 }

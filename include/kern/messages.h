@@ -20,6 +20,7 @@
 #include <kern/kern_types.h>
 #include <kern/proc-service.h>
 #include <kern/vm-service.h>
+#include <kern/thread-service.h>
 
 typedef struct _pri_string{
 	int    req;
@@ -39,6 +40,7 @@ typedef struct _kname_service_msg{
 typedef union _msg_body{
 	pri_string_msg sys_pri_dbg_msg;
 	kname_service_msg    kname_msg;
+	thr_service            thr_msg;
 	proc_service          proc_msg;
 	vm_service              vm_msg;
 }msg_body;

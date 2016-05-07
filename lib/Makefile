@@ -10,6 +10,7 @@ stdfuncs=${top}/klib/memset.o ${top}/klib/strlen.o ${top}/klib/strnlen.o \
 	${top}/klib/doprintf.o ${top}/klib/memcpy.o
 objects=errno.o thread-svc.o event-svc.o lpc-svc.o service-svc.o \
 	uprintf.o proc-svc.o vm-svc.o event-handlers.o		 \
+	event-mask.o				 \
 	${stdfuncs}
 crt_object=start.o bss.o
 lib=libulib.a

@@ -13,6 +13,7 @@
 
 #include <ulib/yatos-ulib.h>
 #include <ulib/thread-svc.h>
+#include <ulib/lpc-svc.h>
 
 /** CPUを開放する
  */
@@ -70,5 +71,90 @@ yatos_thread_wait(tid wait_tid, thread_wait_flags wflags, tid *exit_tidp, exit_c
 		return -1;
 	}
 
+	return 0;
+}
+
+/** 自スレッドのイベントマスクを取得する
+    @param[in] msk イベントマスク返却先
+    @retval    0   正常に取得した
+    @retval   -1   取得に失敗した
+ */
+int
+yatos_get_event_mask(event_mask *msk) {
+	int                      rc;
+	msg_body                msg;
+	thr_service           *smsg;
+	thr_sys_mask_op       *argp;
+
+	if ( msk == NULL ) {
+
+		set_errno(-EFAULT);
+		return -1;
+	}
+	
+	smsg= &msg.thr_msg;
+	argp = &smsg->thr_service_calls.maskop;
+
+	memset( &msg, 0, sizeof(msg_body) );
+
+	smsg->req = THR_SERV_REQ_GET_EVMSK;
+
+	rc = yatos_lpc_send_and_reply( ID_RESV_THR, &msg );
+	if ( rc != 0 ) {
+
+		set_errno(rc);
+		return -1;
+	}
+
+	if ( smsg->rc != 0 ) {
+
+		set_errno( smsg->rc );
+		return -1;
+	}
+	
+	memcpy(msk, &argp->mask, sizeof(event_mask) );
+
+	return 0;
+}
+
+/** 自スレッドのイベントマスクを設定する
+    @param[in] msk 設定するイベントマスクの格納先
+    @retval    0   正常に設定した
+    @retval   -1   設定に失敗した
+ */
+int
+yatos_set_event_mask(event_mask *msk) {
+	int                      rc;
+	msg_body                msg;
+	thr_service           *smsg;
+	thr_sys_mask_op       *argp;
+
+	if ( msk == NULL ) {
+
+		set_errno(-EFAULT);
+		return -1;
+	}
+	
+	smsg= &msg.thr_msg;
+	argp = &smsg->thr_service_calls.maskop;
+
+	memset( &msg, 0, sizeof(msg_body) );
+
+	smsg->req = THR_SERV_REQ_SET_EVMSK;
+	memcpy(&argp->mask, msk, sizeof(event_mask) );
+
+	rc = yatos_lpc_send_and_reply( ID_RESV_THR, &msg );
+	if ( rc != 0 ) {
+
+		set_errno(rc);
+		return -1;
+	}
+
+	if ( smsg->rc != 0 ) {
+
+		set_errno( smsg->rc );
+		return -1;
+	}
+	
 	return 0;
 }
