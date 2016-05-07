@@ -123,14 +123,14 @@ handle_create_thread(proc_sys_create_thread *crethr, endpoint src) {
 		goto unlock_out;
 	}
 
-	if ( !vm_user_area_can_access(&pthr->p->vm, crethr->sp, 
+	if ( !vm_user_area_can_access(&pthr->p->vm, (void *)PAGE_START(crethr->sp), 
 		PAGE_SIZE, VMA_PROT_R|VMA_PROT_W) ) {
 
 		rc = -EFAULT;
 		goto unlock_out;
 	}
 
-	if ( !vm_user_area_can_access(&pthr->p->vm, crethr->start, 
+	if ( !vm_user_area_can_access(&pthr->p->vm, (void *)PAGE_START(crethr->start), 
 		PAGE_SIZE, VMA_PROT_X) ) {
 
 		rc = -EFAULT;

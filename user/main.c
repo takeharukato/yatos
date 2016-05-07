@@ -172,8 +172,8 @@ main(int argc, char *argv[]){
 	yatos_printf("[%d]: sbrk(0) old-heap=%p\n",
 	    yatos_thread_getid(), old_heap);
 
-	yatos_printf("[%d]: heap access test:%p \n",
-	    	    yatos_thread_getid(), old_heap);
+	yatos_printf("[%d]: heap access test: %p - %p \n",
+	    yatos_thread_getid(), old_heap - 4096, old_heap);
 	memset(old_heap - 4096, 0, 4096);
 
 	/*
@@ -207,10 +207,10 @@ main(int argc, char *argv[]){
 	 */
 	yatos_printf("[%d]: create-thread start:%p stack:%p\n",
 	    yatos_thread_getid(), (void *)new_thread, 
-	    (void *)(old_heap - 4096));
+	    (void *)(old_heap - sizeof(void *)));
 
 	rc = yatos_proc_create_thread(0, (void *)new_thread, (void *)0x1234, 
-	    (void *)(old_heap - 4096), &newid);
+	    (void *)(old_heap - sizeof(void *)), &newid);
 	yatos_printf("[%d]: create-thread rc=%d id=%d\n",
 	    yatos_thread_getid(), rc, newid);
 
