@@ -33,10 +33,15 @@
 
 #include <thr/thr-internal.h>
 
-/*< キューとスレッドのロックを同時に取るときは, スレッドのロックを取ってからキューのロックを取る  */
-static thread_dic thr_created_tree = __THREAD_DIC_INITIALIZER(&thr_created_tree.booking);  /* 全スレッド  */
-static thread_queue thr_free_queue = __TQ_INITIALIZER( &thr_free_queue.que );        /* 未使用スレッド  */
-static thread_queue thr_dormant_queue = __TQ_INITIALIZER( &thr_dormant_queue.que );     /* 停止スレッド  */
+/*< ツリー/キューとスレッドのロックを同時に取るときは, ツリー/キューのロックを取ってから
+ *  スレッドのロックを取る  
+ */
+/* 全スレッド  */
+static thread_dic thr_created_tree = __THREAD_DIC_INITIALIZER(&thr_created_tree.booking);
+/* 未使用スレッド  */
+static thread_queue thr_free_queue = __TQ_INITIALIZER( &thr_free_queue.que ); 
+/* 停止スレッド  */
+static thread_queue thr_dormant_queue = __TQ_INITIALIZER( &thr_dormant_queue.que );
 
 static id_bitmap thr_idpool = __ID_BITMAP_INITIALIZER;   /* スレッドIDプール  */
 
