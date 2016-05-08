@@ -25,12 +25,17 @@ OSの実装・運用上エラー処理や互換性の担保は重要なのです
 - BeOS/NewOS(haiku)
 - Xinu/Embedded Xinu
 - Minix V1.1
+- L4
+- Mungi
 - QNX
 - OS-9
 - Sanos
 - xv6
 - BTRON仕様
 - uITRON仕様
+
+X86-64機でのCPU初期化処理/SLABについては, 「０から作るソフトウェア開発」
+(http://softwaretechnique.jp/index.html)の実装を参考にしています。
 
 [2] 機能概要
 
