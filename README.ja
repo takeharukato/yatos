@@ -155,11 +155,14 @@ YATOSでは, OSカーネルが以下の9つのシステムコールを処理し�
    るためのAPIライブラリを搭載しています。
 
    トップディレクトリから
-   cc -Iinclude -nostdlib -T user.lds  lib/crt0.o ユーザプログラムのオブジェクトファイル(.o)
-   -Llib -lulib
+
+   cc -Iinclude -nostdlib -T user/user.lds lib/crt0.o \
+   ユーザプログラムのオブジェクトファイル(.o) -o 実行ファイル名 \
+   -Llib -lyatos
+
    を実行することでユーザプログラムを編纂((リンク)します。
 
-   1) lib/libulib.a
+   1) lib/libyatos.a
       カーネル層のサービスやOSが提供する基本機能を利用する低レベル
       ライブラリです. 以下の機能を提供します。
    

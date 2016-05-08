@@ -39,7 +39,12 @@ popd
 popd
 
 5) ライブラリのコンパイル
-カレントディレクトリにnewlib-2.4.0のソースを展開しているとして以下を実行します。
+  カレントディレクトリにnewlib-2.4.0のソースを展開しているとして以下を実行します。
+コンパイルが完了すると, 
+newlib-2.4.0/rfs/usr/x86_64-pc-yatos
+配下にヘッダとライブラリが展開されます。
+
+
 pushd newlib-2.4.0
 mkdir -p build
 mkdir -p rfs
@@ -52,3 +57,14 @@ make
 make DESTDIR=`pwd`/../rfs install
 popd
 popd
+
+6) コンパイル
+   リンカスクリプトにuser/user.ldsを指定して, lib/libyatos.aとlibcを指定してリンクします.
+     カレントディレクトリにuser.ldsとlibyatosをコピーしてあり, カレントディレクトリの
+   rfsディレクトリにnewlibをインストールしていると仮定すると以下のようにプログラムを
+   編纂します。
+
+   cc -I include -I rfs/usr/x86_64-pc-yatos/include -nostdlib -T user.lds \
+   rfs/usr/x86_64-pc-yatos/lib/crt0.o \
+   ユーザプログラムのオブジェクトファイル(.o) -o 実行ファイル名 \
+   -L rfs/usr/x86_64-pc-yatos/lib -lc -lm -L. -lyatos
