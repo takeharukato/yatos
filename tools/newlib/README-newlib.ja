@@ -1,0 +1,54 @@
+-*- coding: utf-8 -*-
+			 Yatos用newlibパッチ
+[1] 事前準備
+事前にautoconf-2.64, automake-1.12.6(1.13以前のautomake)を用意し, 
+環境変数PATHを通しておきます。これは, newlibが使用している機能(cygnus-tree)が
+automake-1.13以降で廃止されたためです。
+
+[2] newlib-2.4.0を取得しパッチを適用する
+
+1) newlibサイトの確認
+以下のサイトで, newlibのリリース状況を確認します。
+ftp://sourceware.org/pub/newlib/index.html
+
+2) newlib-2.4.0のソースアーカイブ入手
+ftp://sourceware.org/pub/newlib/newlib-2.4.0.tar.gz
+からnewlib-2.4.0.tar.gzを取得します。
+
+3) パッチの適用
+     カレントディクトリにtools/newlib/yatos-newlib-2_4_0.patch を配置し, 
+   2)で取得したソースを展開し, パッチを当てます。
+   
+   tar xf newlib-2.4.0.tar.gz
+   pushd newlib-2.4.0
+   patch -p1 < ../yatos-newlib-2_4_0.patch 
+   popd
+
+
+4) ソースコードの更新
+  yatos対応部をnewlibのautotools関連ファイルに反映します。
+  カレントディレクトリにnewlib-2.4.0のソースを展開しているとして以下を実行します。
+
+pushd newlib-2.4.0
+pushd newlib/libc/sys
+autoconf
+pushd yatos
+autoreconf
+popd
+popd
+popd
+
+5) ライブラリのコンパイル
+カレントディレクトリにnewlib-2.4.0のソースを展開しているとして以下を実行します。
+pushd newlib-2.4.0
+mkdir -p build
+mkdir -p rfs
+pushd build
+../configure --target=x86_64-pc-yatos --prefix=/usr --disable-multilib
+sed -i 's/TARGET=x86_64-pc-yatos-/TARGET=/g' Makefile
+sed -i 's/WRAPPER) x86_64-pc-yatos-/WRAPPER) /g' Makefile
+
+make
+make DESTDIR=`pwd`/../rfs install
+popd
+popd

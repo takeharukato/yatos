@@ -1,44 +1,46 @@
 diff --git a/config.sub b/config.sub
-index 8b612ab..afe8f86 100755
+index da6d1b6..887af99 100755
 --- a/config.sub
 +++ b/config.sub
 @@ -2,7 +2,7 @@
  # Configuration validation subroutine script.
- #   Copyright 1992-2013 Free Software Foundation, Inc.
+ #   Copyright 1992-2016 Free Software Foundation, Inc.
  
--timestamp='2013-04-24'
+-timestamp='2016-01-01'
 +timestamp='2016-05-08'
  
  # This file is free software; you can redistribute it and/or modify it
  # under the terms of the GNU General Public License as published by
-@@ -1355,6 +1355,7 @@ case $os in
- 	      | -sym* | -kopensolaris* | -plan9* \
- 	      | -amigaos* | -amigados* | -msdos* | -newsos* | -unicos* | -aof* \
- 	      | -aos* | -aros* \
-+	      | -yatos* \
- 	      | -nindy* | -vxsim* | -vxworks* | -ebmon* | -hms* | -mvs* \
- 	      | -clix* | -riscos* | -uniplus* | -iris* | -rtu* | -xenix* \
- 	      | -hiux* | -386bsd* | -knetbsd* | -mirbsd* | -netbsd* \
+@@ -1399,7 +1399,7 @@ case $os in
+ 	      | -morphos* | -superux* | -rtmk* | -rtmk-nova* | -windiss* \
+ 	      | -powermax* | -dnix* | -nx6 | -nx7 | -sei* | -dragonfly* \
+ 	      | -skyos* | -haiku* | -rdos* | -toppers* | -drops* | -es* \
+-	      | -onefs* | -tirtos*)
++	      | -onefs* | -tirtos* | -yatos* )
+ 	# Remember, each alternative MUST END IN *, to match a version number.
+ 		;;
+ 	-qnx*)
 diff --git a/newlib/configure.host b/newlib/configure.host
-index 58faa95..2d534b6 100644
+index 8b0846e..4fda09d 100644
 --- a/newlib/configure.host
 +++ b/newlib/configure.host
-@@ -539,6 +539,9 @@ case "${host}" in
+@@ -560,6 +560,10 @@ case "${host}" in
    z8k-*-coff)
  	sys_dir=z8ksim
  	;;
 +  x86_64-*-yatos*)
 +	sys_dir=yatos
++	newlib_cflags="${newlib_cflags} -mcmodel=large -DSIGNAL_PROVIDED"
 +	;;
  esac
  
  # Host specific flag settings -- usually for features that are not
 diff --git a/newlib/libc/sys/configure.in b/newlib/libc/sys/configure.in
-index c355659..821d5c9 100644
+index b50a6d3..e86b464 100644
 --- a/newlib/libc/sys/configure.in
 +++ b/newlib/libc/sys/configure.in
-@@ -47,6 +47,7 @@ if test -n "${sys_dir}"; then
- 	tic80) AC_CONFIG_SUBDIRS(tic80) ;;
+@@ -48,6 +48,7 @@ if test -n "${sys_dir}"; then
+ 	tirtos) AC_CONFIG_SUBDIRS(tirtos) ;;
  	w65) AC_CONFIG_SUBDIRS(w65) ;;
  	z8ksim) AC_CONFIG_SUBDIRS(z8ksim) ;;
 +	yatos) AC_CONFIG_SUBDIRS(yatos) ;;
@@ -47,7 +49,7 @@ index c355659..821d5c9 100644
  
 diff --git a/newlib/libc/sys/yatos/Makefile.am b/newlib/libc/sys/yatos/Makefile.am
 new file mode 100644
-index 0000000..4664dcb
+index 0000000..5d5c289
 --- /dev/null
 +++ b/newlib/libc/sys/yatos/Makefile.am
 @@ -0,0 +1,15 @@
@@ -57,7 +59,7 @@ index 0000000..4664dcb
 +
 +noinst_LIBRARIES = lib.a
 +
-+lib_a_SOURCES = syscalls.c
++lib_a_SOURCES = syscalls.c signal-glue.c
 +lib_a_CCASFLAGS = $(AM_CCASFLAGS)
 +lib_a_CFLAGS = $(AM_CFLAGS)
 +
@@ -124,12 +126,101 @@ index 0000000..5c9be6a
 +	yatos_thread_exit(rc);
 +}
 +
+diff --git a/newlib/libc/sys/yatos/signal-glue.c b/newlib/libc/sys/yatos/signal-glue.c
+new file mode 100644
+index 0000000..80b844b
+--- /dev/null
++++ b/newlib/libc/sys/yatos/signal-glue.c
+@@ -0,0 +1,74 @@
++/* -*- mode: C; coding:utf-8 -*- */
++/**********************************************************************/
++/*  Yet Another Teachable Operating System                            */
++/*  Copyright 2016 Takeharu KATO                                      */
++/*                                                                    */
++/*  newlib signal glue routines                                       */
++/*                                                                    */
++/**********************************************************************/
++
++#include <signal.h>
++
++struct _evinfo;
++typedef void (*ev_handler)(uint64_t , struct _evinfo *, void *);
++
++#define EV_NR_EVENT  (128)                     /*<  128イベント  */
++#define EV_HDLR_DFL	((ev_handler)0)	/*< デフォルト動作 */
++#define EV_HDLR_IGN	((ev_handler)1)	/*< 無視 */
++
++extern int yatos_register_user_event_handler(int _id, ev_handler _handler);
++extern int yatos_proc_send_event(uint64_t _dest, int  _id, void * _data);
++extern uint64_t yatos_thread_getid(void);
++typedef void (*signal_func)(int );
++static signal_func sighndlrs[EV_NR_EVENT];
++
++void
++_nl_yatos_init_signal_handlers(void) {
++	int i;
++	
++	for( i = 0; EV_NR_EVENT > i; ++i)
++		sighndlrs[i] = NULL;
++}
++
++void
++_nl_yatos_invoke_signal_handler(uint64_t evno, struct _evinfo *evinf, void *ef) {
++	signal_func func;
++
++	if ( evno >= EV_NR_EVENT)
++		return;
++
++	if ( sighndlrs[evno] == NULL )
++		return;
++
++	func = sighndlrs[evno];
++
++	func(evno);
++}
++
++_sig_func_ptr
++signal(int sig, void(*func)(int)){
++	_sig_func_ptr old;
++
++	old = (_sig_func_ptr)sighndlrs[sig];
++	if ( func == SIG_DFL ) {
++		
++		sighndlrs[sig] = NULL;		
++		yatos_register_user_event_handler(sig, EV_HDLR_DFL);
++	} else if ( func == SIG_IGN ) {
++
++		sighndlrs[sig] = NULL;
++		yatos_register_user_event_handler(sig, EV_HDLR_IGN);
++	} else {
++
++		sighndlrs[sig] = func;
++		yatos_register_user_event_handler(sig, _nl_yatos_invoke_signal_handler);
++	}
++
++	return old;
++}
++
++int
++raise(int sig) {
++
++	return yatos_proc_send_event(yatos_thread_getid(), sig, NULL);
++}
 diff --git a/newlib/libc/sys/yatos/syscalls.c b/newlib/libc/sys/yatos/syscalls.c
 new file mode 100644
-index 0000000..4ea82ba
+index 0000000..979fd83
 --- /dev/null
 +++ b/newlib/libc/sys/yatos/syscalls.c
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,143 @@
++/* -*- mode: C; coding:utf-8 -*- */
++/**********************************************************************/
++/*  Yet Another Teachable Operating System                            */
++/*  Copyright 2016 Takeharu KATO                                      */
++/*                                                                    */
++/*  newlib glue routines                                              */
++/*                                                                    */
++/**********************************************************************/
++
 +#include <sys/stat.h>
 +#include <sys/types.h>
 +#include <sys/fcntl.h>
