@@ -31,7 +31,7 @@
 #include <ulib/utils.h>
 
 extern char **environ;
-int __errno(void);
+int *__errno(void);
 void set_errno(syscall_res_type _res);
 void _clear_bss(void);
 #endif  /*  _ULIB_YATOS_ULIB_H   */

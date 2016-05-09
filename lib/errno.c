@@ -15,10 +15,10 @@
 #include <ulib/event-svc.h>
 
 int errno;
-int
+int *
 __errno(void){
 
-	return errno;
+	return &errno;
 }
 void
 set_errno(syscall_res_type res) {
