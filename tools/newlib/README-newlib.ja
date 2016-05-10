@@ -49,7 +49,7 @@ pushd newlib-2.4.0
 mkdir -p build
 mkdir -p rfs
 pushd build
-../configure --target=x86_64-pc-yatos --prefix=/usr --disable-multilib
+../newlib/configure --target=x86_64-pc-yatos --prefix=/usr --disable-multilib
 sed -i 's/TARGET=x86_64-pc-yatos-/TARGET=/g' Makefile
 sed -i 's/WRAPPER) x86_64-pc-yatos-/WRAPPER) /g' Makefile
 
