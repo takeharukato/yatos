@@ -21,6 +21,7 @@ SECTIONS
      }
      _edata = .;			/* End of data section */
     . = ALIGN(0x1000);
+    __bss_start = .;
     .bss :  {
         _bss_start = .;
         *(.bss)
@@ -29,7 +30,7 @@ SECTIONS
     }
     . = ALIGN(0x1000);
     _user_end = .;
-
+    _end = .;
     /DISCARD/ :
     {
 	         *(.gcc_except_table)

@@ -20,4 +20,5 @@
 
 int yatos_snprintf(char *buf, size_t size, const char *fmt,...);
 int yatos_printf(const char *fmt,...);
+int yatos_dbg_write(const char *buf, size_t len);
 #endif  /*  _ULIB_UTILS_H   */

@@ -11,15 +11,15 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-extern uintptr_t _bss_start;
-extern uintptr_t _bss_end;
+extern uintptr_t __bss_start;
+extern uintptr_t _end;
  
 /** BSS領域を初期化する
  */
 void
 _clear_bss(void) {
-	uintptr_t *start = &_bss_start;
-	uintptr_t *end =   &_bss_end;
+	uintptr_t *start = &__bss_start;
+	uintptr_t *end =   &_end;
 
 	/*
 	 * Clear BSS
