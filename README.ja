@@ -368,3 +368,61 @@ page-pool: 984001/1048318 free pages(3843 MiB free)
 [256]: process stack demand paging test OK
 [256]: return 0
 ---
+
+[6] 開発環境構築手順について
+
+ツールチェイン構築用のシェルスクリプトを tools/toolchain/cross.sh に配置しています。
+
+x86-64 Linux環境で, cross.sh と同じディレクトリに 
+
+  tools/newlib/yatos-newlib-2_4_0.patch
+  tools/gdb/gdb-7.10-qemu-x86-64.patch
+
+を配置し,
+
+/bin/sh ./cross.sh
+
+を実行すると, 
+${HOME}/cross/yatos/構築日
+(*) 構築日はYYYY-MM-DD形式
+
+配下にx86_64-elf-のツールチェインを構築・インストールします。
+${HOME}/cross/yatos/currentという名前で, 上記ディレクトリにシンボリックリンクを
+作成しますので, 
+
+${HOME}/cross/yatos/current/bin
+
+にパスを通しておくことで直近にビルドしたツールチェインを利用することができます。
+
+cp lib/libyatos.a  ${HOME}/cross/yatos/current/rfs/usr/lib
+
+を実行し, 低レベルライブラリをライブラリディレクトリにコピーしておくことで,
+以下のようにクロスコンパイラを使用したアプリケーション構築を行えます。
+
+x86_64-elf-gcc  -o 実行形式ファイル名 Cソースファイル名  -lc -lm -lyatos
+
+例:
+x86_64-elf-gcc  -o hello.elf hello.c -lc -lm -lyatos
+
+作成した実行形式は, .elfの拡張子を付けて, user/ ディレクトリに配置します。
+
+hal/x86-64/grub/iso/grub.cfg
+を編集し, 作成したプログラムをGRUB2のモジュールとして指定することで, make run実行時に
+読み込まれるようになります(実行形式は, make run時に生成されるisoファイルの/boot配下に
+配置されます)。
+
+GRUB2のモジュールの指定は, 以下の書式で行います:
+
+module2 /boot/実行形式ファイル名 コマンド名 引数1 引数2 ...
+
+例: /boot/user1.elfをコマンド名``user1.elf'' 引数 arg1 arg2 を付けて起動する場合
+
+menuentry "kernel" {
+    multiboot2 /boot/kernel.elf
+    module2    /boot/user1.elf user1.elf arg1 arg2
+}
+
+
+
+
+
