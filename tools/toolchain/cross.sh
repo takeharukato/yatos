@@ -227,43 +227,18 @@ build_gdb(){
     popd
 }
 
-prepare
-fetch_archives
-build_autotools
-build_binutils
-build_gcc1
-build_newlib
-build_gcc2
-build_gdb
+main(){
 
-# mkdir build-gcc1
-# pushd build-gcc1
-# ../../src/gcc-4.8.3/configure --target=${TARGET} --prefix="${PREFIX}" \
-#  --disable-nls --enable-languages=c,c++ --without-headers
-# make ${SMP_FLG} all-gcc
-# make ${SMP_FLG} all-target-libgcc
-# make install-gcc
-# make install-target-libgcc
-# popd
+    prepare
+    fetch_archives
+    build_autotools
+    build_binutils
+    build_gcc1
+    build_newlib
+    build_gcc2
+    build_gdb
+}
 
-# mkdir build-newlib
-# pushd build-newlib
-# ../../src/newlib-2.4.0/newlib/configure --target=${TARGET_CPU}-pc-yatos --host=${TARGET_CPU}-pc-yatos \
-#     --prefix=/usr --disable-multilib
-# sed -i 's/TARGET=${TARGET_CPU}-pc-yatos-/TARGET=/g' Makefile
-# sed -i 's/WRAPPER) ${TARGET_CPU}-pc-yatos-/WRAPPER) /g' Makefile
-# make ${SMP_FLG} 
-# make DESTDIR="${SYSROOT}" install
-# ln -sf ${SYSROOT}/usr/${TARGET_CPU}-pc-yatos/include ${SYSROOT}/usr
-# ln -sf ${SYSROOT}/usr/${TARGET_CPU}-pc-yatos/lib ${SYSROOT}/usr
-# popd
+main $@
 
-# mkdir build-gcc2
-# pushd build-gcc2
-# ../../src/gcc-4.8.3/configure --target=${TARGET} --prefix="${PREFIX}" \
-#  --disable-nls --enable-languages=c,c++ --with-sysroot="${SYSROOT}"
-# make ${SMP_FLG} all-gcc
-# make ${SMP_FLG} all-target-libgcc
-# make install-gcc
-# make install-target-libgcc
-# popd
+
