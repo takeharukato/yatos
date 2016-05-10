@@ -35,18 +35,6 @@ index 8b0846e..4fda09d 100644
  esac
  
  # Host specific flag settings -- usually for features that are not
-diff --git a/newlib/libc/sys/configure.in b/newlib/libc/sys/configure.in
-index b50a6d3..e86b464 100644
---- a/newlib/libc/sys/configure.in
-+++ b/newlib/libc/sys/configure.in
-@@ -48,6 +48,7 @@ if test -n "${sys_dir}"; then
- 	tirtos) AC_CONFIG_SUBDIRS(tirtos) ;;
- 	w65) AC_CONFIG_SUBDIRS(w65) ;;
- 	z8ksim) AC_CONFIG_SUBDIRS(z8ksim) ;;
-+	yatos) AC_CONFIG_SUBDIRS(yatos) ;;
-   esac;
- fi
- 
 diff --git a/newlib/libc/sys/yatos/Makefile.am b/newlib/libc/sys/yatos/Makefile.am
 new file mode 100644
 index 0000000..5d5c289
@@ -208,10 +196,10 @@ index 0000000..80b844b
 +}
 diff --git a/newlib/libc/sys/yatos/syscalls.c b/newlib/libc/sys/yatos/syscalls.c
 new file mode 100644
-index 0000000..979fd83
+index 0000000..9ea8743
 --- /dev/null
 +++ b/newlib/libc/sys/yatos/syscalls.c
-@@ -0,0 +1,143 @@
+@@ -0,0 +1,136 @@
 +/* -*- mode: C; coding:utf-8 -*- */
 +/**********************************************************************/
 +/*  Yet Another Teachable Operating System                            */
@@ -239,6 +227,7 @@ index 0000000..979fd83
 +extern void     *yatos_vm_sbrk(intptr_t increment);
 +extern int       yatos_thread_wait(uint64_t _wait_tid, uint32_t _wflags, 
 +    uint64_t *_exit_tidp, uint64_t *_rcp);
++extern int yatos_dbg_write(const char *buf, size_t len);
 +
 +void
 +_exit(void){
@@ -338,16 +327,8 @@ index 0000000..979fd83
 +}
 +int
 +write(int file, char *ptr, int len) {
-+	char buff[256];
-+	int  wlen;
-+	
-+	wlen = len;
-+	if ( len > 256)
-+		wlen = 256;
-+	memcpy(buff, ptr, wlen);
-+	buff[255]='\0';
 +
-+	return yatos_printf("%s", buff);	
++	return yatos_dbg_write(ptr, len);
 +}
 +int
 +gettimeofday(struct timeval *p, void *z) {
