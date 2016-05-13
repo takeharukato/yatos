@@ -35,7 +35,6 @@
 #define PAGE_CSTATE_NOT_FREED(pg) \
 	( ( ( (struct _page_frame *)(pg) )->state ) & ( PAGE_CSTATE_USED | PAGE_CSTATE_RESERVED ) )
 
-
 #define KMALLOC_NORMAL       (0)  /*< 通常獲得        */
 #define KMALLOC_ATOMIC       (1)  /*< アトミック獲得  */
 
