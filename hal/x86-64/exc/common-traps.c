@@ -444,7 +444,9 @@ page_fault_exception(trap_context *ctx) {
 			rc = proc_expand_stack(current->p, fault_addr);
 			if ( rc != 0 )
 				goto exit_out;
-		}
+		} else 
+			goto exit_out;	/* Invalid memory area access */
+
 	} else {
 		
 		handle_error_exception(ctx);
