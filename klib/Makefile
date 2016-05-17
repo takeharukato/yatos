@@ -8,7 +8,7 @@ include ${top}/Makefile.inc
 CFLAGS += -I${top}/include
 objects=doprintf.o memchr.o memcmp.o memcpy.o memmove.o memset.o \
 	printf.o strchr.o strcmp.o strcpy.o strlen.o strncpy.o \
-	strnlen.o strrchr.o strstr.o strncat.o strncmp.o vsnprintf.o \
+	strnlen.o strrchr.o strstr.o strncat.o strncmp.o strdup.o vsnprintf.o \
 	list.o queue.o
 lib=libklib.a
 

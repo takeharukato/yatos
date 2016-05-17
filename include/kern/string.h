@@ -25,4 +25,5 @@ char *strncat(char *, char const *, size_t );
 int strncmp(const char *, const char *, size_t );
 size_t strlen(char const *);
 size_t strnlen(char const *, size_t );
+char *strdup(const char *);
 #endif  /*  __KERN_STRING_H  */
