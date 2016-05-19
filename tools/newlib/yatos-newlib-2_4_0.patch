@@ -1,6 +1,6 @@
 diff -Nupr newlib-2.4.0.orig/config.sub newlib-2.4.0/config.sub
 --- newlib-2.4.0.orig/config.sub	2016-03-30 06:33:42.000000000 +0900
-+++ newlib-2.4.0/config.sub	2016-05-10 23:28:07.988148081 +0900
++++ newlib-2.4.0/config.sub	2016-05-20 00:04:43.630120991 +0900
 @@ -2,7 +2,7 @@
  # Configuration validation subroutine script.
  #   Copyright 1992-2016 Free Software Foundation, Inc.
@@ -21,21 +21,21 @@ diff -Nupr newlib-2.4.0.orig/config.sub newlib-2.4.0/config.sub
  	-qnx*)
 diff -Nupr newlib-2.4.0.orig/newlib/configure.host newlib-2.4.0/newlib/configure.host
 --- newlib-2.4.0.orig/newlib/configure.host	2016-03-30 06:33:42.000000000 +0900
-+++ newlib-2.4.0/newlib/configure.host	2016-05-10 23:28:34.021149908 +0900
++++ newlib-2.4.0/newlib/configure.host	2016-05-20 00:04:43.630120991 +0900
 @@ -560,6 +560,10 @@ case "${host}" in
    z8k-*-coff)
  	sys_dir=z8ksim
  	;;
 +  x86_64-*-yatos*)
 +	sys_dir=yatos
-+	newlib_cflags="${newlib_cflags} -mcmodel=large -DSIGNAL_PROVIDED"
++	newlib_cflags="${newlib_cflags} -mcmodel=large -g -O0 -DSIGNAL_PROVIDED"
 +	;;
  esac
  
  # Host specific flag settings -- usually for features that are not
 diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/configure.in newlib-2.4.0/newlib/libc/sys/configure.in
 --- newlib-2.4.0.orig/newlib/libc/sys/configure.in	2016-03-30 06:33:42.000000000 +0900
-+++ newlib-2.4.0/newlib/libc/sys/configure.in	2016-05-10 23:28:57.993151591 +0900
++++ newlib-2.4.0/newlib/libc/sys/configure.in	2016-05-20 00:04:43.630120991 +0900
 @@ -48,6 +48,7 @@ if test -n "${sys_dir}"; then
  	tirtos) AC_CONFIG_SUBDIRS(tirtos) ;;
  	w65) AC_CONFIG_SUBDIRS(w65) ;;
@@ -46,7 +46,7 @@ diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/configure.in newlib-2.4.0/newlib/li
  
 diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/Makefile.am newlib-2.4.0/newlib/libc/sys/yatos/Makefile.am
 --- newlib-2.4.0.orig/newlib/libc/sys/yatos/Makefile.am	1970-01-01 09:00:00.000000000 +0900
-+++ newlib-2.4.0/newlib/libc/sys/yatos/Makefile.am	2016-05-10 23:26:52.164142759 +0900
++++ newlib-2.4.0/newlib/libc/sys/yatos/Makefile.am	2016-05-20 00:04:43.630120991 +0900
 @@ -0,0 +1,15 @@
 +AUTOMAKE_OPTIONS = cygnus
 +INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
@@ -54,7 +54,7 @@ diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/Makefile.am newlib-2.4.0/newl
 +
 +noinst_LIBRARIES = lib.a
 +
-+lib_a_SOURCES = syscalls.c signal-glue.c
++lib_a_SOURCES = syscalls.c signal-glue.c reent-glue.c
 +lib_a_CCASFLAGS = $(AM_CCASFLAGS)
 +lib_a_CFLAGS = $(AM_CFLAGS)
 +
@@ -65,7 +65,7 @@ diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/Makefile.am newlib-2.4.0/newl
 +
 diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/configure.in newlib-2.4.0/newlib/libc/sys/yatos/configure.in
 --- newlib-2.4.0.orig/newlib/libc/sys/yatos/configure.in	1970-01-01 09:00:00.000000000 +0900
-+++ newlib-2.4.0/newlib/libc/sys/yatos/configure.in	2016-05-10 23:26:52.164142759 +0900
++++ newlib-2.4.0/newlib/libc/sys/yatos/configure.in	2016-05-20 00:04:43.630120991 +0900
 @@ -0,0 +1,7 @@
 +AC_PREREQ(2.59)
 +AC_INIT([newlib], [NEWLIB_VERSION])
@@ -76,8 +76,8 @@ diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/configure.in newlib-2.4.0/new
 +AC_OUTPUT
 diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/crt0.c newlib-2.4.0/newlib/libc/sys/yatos/crt0.c
 --- newlib-2.4.0.orig/newlib/libc/sys/yatos/crt0.c	1970-01-01 09:00:00.000000000 +0900
-+++ newlib-2.4.0/newlib/libc/sys/yatos/crt0.c	2016-05-10 23:26:52.165142759 +0900
-@@ -0,0 +1,39 @@
++++ newlib-2.4.0/newlib/libc/sys/yatos/crt0.c	2016-05-20 01:26:50.760974843 +0900
+@@ -0,0 +1,49 @@
 +/* -*- mode: C; coding:utf-8 -*- */
 +/**********************************************************************/
 +/*  Yet Another Teachable Operating System                            */
@@ -90,6 +90,7 @@ diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/crt0.c newlib-2.4.0/newlib/li
 +#include <stdint.h>
 +#include <stddef.h>
 +#include <stdbool.h>
++#include <stdio.h>
 +
 +typedef uint64_t syscall_arg_type;  /*< システムコール引数の型  */
 +typedef int64_t  syscall_res_type;  /*< システムコール結果の型  */
@@ -100,26 +101,65 @@ diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/crt0.c newlib-2.4.0/newlib/li
 +extern void yatos_thread_exit(int rc);
 +extern void _yatos_register_common_event_handler(void);
 +
++extern void _setup_reentrant_structure(void);
++
 +char **environ;
 +
 +void
 +_start(int argc, char *argv[], char **envp) {
-+	int rc;
++	int            rc;
++	char buf1[BUFSIZ];
++	char buf2[BUFSIZ];
++	char buf3[BUFSIZ];
 +
 +	_clear_bss();
-+
++	_setup_reentrant_structure();
 +	environ = envp;
 +	__yatos_user_event_handler_init();
 +	_yatos_register_common_event_handler();
 +
++	setbuf(stdin, buf1);
++	setbuf(stdout, buf2);
++	setbuf(stderr, buf3);
++	
 +	rc = main(argc, argv);
 +
 +	yatos_thread_exit(rc);
 +}
 +
+diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/reent-glue.c newlib-2.4.0/newlib/libc/sys/yatos/reent-glue.c
+--- newlib-2.4.0.orig/newlib/libc/sys/yatos/reent-glue.c	1970-01-01 09:00:00.000000000 +0900
++++ newlib-2.4.0/newlib/libc/sys/yatos/reent-glue.c	2016-05-20 01:28:29.254966774 +0900
+@@ -0,0 +1,26 @@
++/* -*- mode: C; coding:utf-8 -*- */
++/**********************************************************************/
++/*  Yet Another Teachable Operating System                            */
++/*  Copyright 2016 Takeharu KATO                                      */
++/*                                                                    */
++/*  newlib glue routines(reentrant)                                   */
++/*                                                                    */
++/**********************************************************************/
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <reent.h>
++
++extern int yatos_printf(const char *fmt,...);
++
++void
++_setup_reentrant_structure(void){
++	struct _reent *p;
++
++	p = malloc( sizeof(struct _reent) );
++	if ( p == NULL ) 
++		yatos_printf("Warn: Can not allocate reent for process.\n");
++	else
++		_REENT_INIT_PTR(p);
++}
++
 diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/signal-glue.c newlib-2.4.0/newlib/libc/sys/yatos/signal-glue.c
 --- newlib-2.4.0.orig/newlib/libc/sys/yatos/signal-glue.c	1970-01-01 09:00:00.000000000 +0900
-+++ newlib-2.4.0/newlib/libc/sys/yatos/signal-glue.c	2016-05-10 23:26:52.165142759 +0900
++++ newlib-2.4.0/newlib/libc/sys/yatos/signal-glue.c	2016-05-20 00:04:43.631120991 +0900
 @@ -0,0 +1,74 @@
 +/* -*- mode: C; coding:utf-8 -*- */
 +/**********************************************************************/
@@ -197,7 +237,7 @@ diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/signal-glue.c newlib-2.4.0/ne
 +}
 diff -Nupr newlib-2.4.0.orig/newlib/libc/sys/yatos/syscalls.c newlib-2.4.0/newlib/libc/sys/yatos/syscalls.c
 --- newlib-2.4.0.orig/newlib/libc/sys/yatos/syscalls.c	1970-01-01 09:00:00.000000000 +0900
-+++ newlib-2.4.0/newlib/libc/sys/yatos/syscalls.c	2016-05-10 23:26:52.165142759 +0900
++++ newlib-2.4.0/newlib/libc/sys/yatos/syscalls.c	2016-05-20 00:04:43.631120991 +0900
 @@ -0,0 +1,136 @@
 +/* -*- mode: C; coding:utf-8 -*- */
 +/**********************************************************************/
