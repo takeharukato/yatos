@@ -7,7 +7,6 @@
 /*                                                                    */
 /**********************************************************************/
 
-#include <stdio.h>
 #include <kern/asm-offset-helper.h>
 
 #define __IN_ASM_OFFSET 1
