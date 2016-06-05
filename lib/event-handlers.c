@@ -11,7 +11,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include <string.h>
+#include <kern/string.h>
 
 #include <ulib/yatos-ulib.h>
 #include <ulib/thread-svc.h>
