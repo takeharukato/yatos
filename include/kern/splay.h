@@ -71,6 +71,10 @@ struct {								\
 	struct type *spe_right; /* right element */			\
 }
 
+#define SPLAY_ENTRY_INITIALIZER(type)					\
+	{ (struct type *)NULL, (struct type *)NULL }
+
+
 #define SPLAY_LEFT(elm, field)		(elm)->field.spe_left
 #define SPLAY_RIGHT(elm, field)		(elm)->field.spe_right
 #define SPLAY_ROOT(head)		(head)->sph_root
@@ -110,11 +114,11 @@ struct {								\
 
 /* Generates prototypes and inline functions */
 
-#define SPLAY_PROTOTYPE(name, type, field, cmp)				                \
-void name##_SPLAY(struct name *, struct type *) __attribute__((unused));                \
-void name##_SPLAY_MINMAX(struct name *, int) __attribute__((unused));			\
-struct type *name##_SPLAY_INSERT(struct name *, struct type *) __attribute__((unused));	\
-struct type *name##_SPLAY_REMOVE(struct name *, struct type *) __attribute__((unused));	\
+#define SPLAY_PROTOTYPE_INTERNAL(name, type, field, cmp, attr)		\
+attr void name##_SPLAY(struct name *, struct type *) __attribute__((unused));                \
+attr void name##_SPLAY_MINMAX(struct name *, int) __attribute__((unused));			\
+attr struct type *name##_SPLAY_INSERT(struct name *, struct type *) __attribute__((unused));	\
+attr struct type *name##_SPLAY_REMOVE(struct name *, struct type *) __attribute__((unused));	\
 									\
 /* Finds the node with the same key as elm */				\
 static __attribute__((unused)) __inline struct type *			\
@@ -152,8 +156,8 @@ name##_SPLAY_MIN_MAX(struct name *head, int val)			\
 /* Main splay operation.
  * Moves node close to the key of elm to top
  */
-#define SPLAY_GENERATE(name, type, field, cmp)				\
-struct type *								\
+#define SPLAY_GENERATE_INTERNAL(name, type, field, cmp, attr)		\
+attr struct type *							\
 name##_SPLAY_INSERT(struct name *head, struct type *elm)		\
 {									\
     if (SPLAY_EMPTY(head)) {						\
@@ -177,7 +181,7 @@ name##_SPLAY_INSERT(struct name *head, struct type *elm)		\
     return (NULL);							\
 }									\
 									\
-struct type *								\
+attr struct type *							\
 name##_SPLAY_REMOVE(struct name *head, struct type *elm)		\
 {									\
 	struct type *__tmp;						\
@@ -198,7 +202,7 @@ name##_SPLAY_REMOVE(struct name *head, struct type *elm)		\
 	return (NULL);							\
 }									\
 									\
-void									\
+attr void								\
 name##_SPLAY(struct name *head, struct type *elm)			\
 {									\
 	struct type __node, *__left, *__right, *__tmp;			\
@@ -236,7 +240,7 @@ name##_SPLAY(struct name *head, struct type *elm)			\
 /* Splay with either the minimum or the maximum element			\
  * Used to find minimum or maximum element in tree.			\
  */									\
-void name##_SPLAY_MINMAX(struct name *head, int __comp) \
+attr void name##_SPLAY_MINMAX(struct name *head, int __comp)		\
 {									\
 	struct type __node, *__left, *__right, *__tmp;			\
 \
@@ -268,6 +272,18 @@ void name##_SPLAY_MINMAX(struct name *head, int __comp) \
 	}								\
 	SPLAY_ASSEMBLE(head, &__node, __left, __right, field);		\
 }
+
+#define SPLAY_GENERATE(name, type, field, cmp)			\
+	SPLAY_GENERATE_INTERNAL(name, type, field, cmp,)
+
+#define SPLAY_GENERATE_STATIC(name, type, field, cmp)		\
+	SPLAY_GENERATE_INTERNAL(name, type, field, cmp, static __attribute__((unused)) __inline)
+
+#define SPLAY_PROTOTYPE(name, type, field, cmp)		\
+	SPLAY_PROTOTYPE_INTERNAL(name, type, field, cmp,)
+
+#define SPLAY_PROTOTYPE_STATIC(name, type, field, cmp)		\
+	SPLAY_PROTOTYPE_INTERNAL(name, type, field, cmp, static __attribute__((unused)) __inline)
 
 #define SPLAY_NEGINF	-1
 #define SPLAY_INF	1
