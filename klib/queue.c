@@ -35,7 +35,7 @@ void
 queue_add_top(struct _queue *head, list *node) {
 
 	node->next = head->next;
-	node->prev = head->prev;
+	node->prev = (list *)head;
 	head->next->prev = node;
 	head->next = node;
 }
