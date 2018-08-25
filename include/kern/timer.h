@@ -56,7 +56,7 @@ int kcom_tim_unregister_timer_irq(intr_no _no);
 void tim_init_subsys(void);
 
 sync_reason tim_wait(tim_tmout _outms);
-sync_reason tim_wait_obj(struct _sync_obj *_obj, tim_tmout _outms);
+sync_reason tim_wait_obj(sync_obj *_obj, tim_tmout _outms, spinlock *_lock);
 void mdelay(delay_cnt _ms);
 void udelay(delay_cnt _us);
 

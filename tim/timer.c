@@ -79,33 +79,6 @@ init_timer_callout(timer_callout *callout) {
 	callout->expire = 0;
 }
 
-/** コールアウトを起動する
-    @param[in] cur_tick コールアウト起動時のシステムタイマティック値
- */
-void
-_tim_invoke_callout(ticks cur_tick) {
-	intrflags            flags;
-	timer_callout *callout_ref;
-	timer_callout        *next;
-
-	spinlock_lock_disable_intr( &timer_callout_queue.lock, &flags );
-
-	for (callout_ref = RB_MIN(timer_queue, &timer_callout_queue.que); callout_ref != NULL; callout_ref = next) {
-
-		next = RB_NEXT(timer_queue, &timer_callout_queue.que, callout_ref);
-		if ( callout_ref->expire <= cur_tick ) {
-
-			RB_REMOVE(timer_queue, &timer_callout_queue.que, callout_ref);
-
-			kassert( callout_ref->callout != NULL );
-			callout_ref->callout(callout_ref->data);
-		}
-	}
-
-	spinlock_unlock_restore_intr( &timer_callout_queue.lock, &flags );
-	
-}
-
 /** タイムアウトに伴うスレッド起床処理
  */
 static void
@@ -116,46 +89,6 @@ timeout_handler(void *sync) {
 	sync_wake((sync_obj *)sync, SYNC_WAI_TIMEOUT );
 }
 
-/** 指定した時間だけCPUを開放する
-    @param[in] outms タイムアウト時間(単位:ms)
-    @retval SYNC_WAI_TIMEOUT タイムアウトした
- */
-sync_reason
-tim_wait(tim_tmout outms) {
-	intrflags           flags;
-	timer_callout          cb;
-	sync_obj        timer_obj; 
-	sync_reason           res;
-	timer_callout        *cbp;
-
-	init_timer_callout( &cb ); /* コールバック情報を初期化  */
-
-	 /*  同期オブジェクトを初期化  */
-	sync_init_object( &timer_obj, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT );
-
-	/*
-	 * タイムアウト情報を設定
-	 */
-	cb.tmout = outms;
-	cb.expire = ms_to_ticks(outms) + _tim_refer_uptime_lockfree();
-	cb.callout = timeout_handler;
-	cb.data = &timer_obj;
-
-	spinlock_lock_disable_intr( &timer_callout_queue.lock, &flags );
-
-	cbp = RB_INSERT(timer_queue, &timer_callout_queue.que, &cb );
-	kassert( cbp == NULL );
-
-	spinlock_unlock_restore_intr( &timer_callout_queue.lock, &flags );
-
-	res = sync_wait( &timer_obj );  /*  タイマ待ちに入る  */
-
-	spinlock_lock_disable_intr( &timer_obj.lock, &flags ); 
-	kassert( queue_is_empty( &timer_obj.que ) );  /*  キューが空であることを確認  */
-	spinlock_unlock_restore_intr( &timer_obj.lock, &flags );
-
-	return res;
-}
 
 /** 同期オブジェクトをタイムアウト付きで待ち合わせる
     @param[in] obj   同期オブジェクト
@@ -165,8 +98,8 @@ tim_wait(tim_tmout outms) {
     @param[in] cbp       タイマコールバック情報
     @param[in] outms タイムアウト時間(単位:ms)
 */
-void
-_tim_wait_obj_no_schedule(sync_obj *obj, sync_obj *timer_objp, sync_block *obj_sbp, 
+static void
+wait_time_obj_no_schedule(sync_obj *obj, sync_obj *timer_objp, sync_block *obj_sbp, 
     sync_block *timer_sbp, timer_callout *cbp, tim_tmout outms) {
 	intrflags       flags;
 	timer_callout    *res;
@@ -221,8 +154,8 @@ _tim_wait_obj_no_schedule(sync_obj *obj, sync_obj *timer_objp, sync_block *obj_s
     @retval SYNC_OBJ_DESTROYED オブジェクトが破棄された
     @retval SYNC_WAI_TIMEOUT タイムアウトした
 */
-sync_reason
-_tim_finish_wait_obj(sync_obj *obj, sync_obj *timer_objp, sync_block *obj_sbp, sync_block *timer_sbp, timer_callout *cbp) {
+static sync_reason
+finish_wait_time_obj(sync_obj *obj, sync_obj *timer_objp, sync_block *obj_sbp, sync_block *timer_sbp, timer_callout *cbp) {
 	sync_reason res;
 	intrflags flags;	
 
@@ -259,28 +192,102 @@ _tim_finish_wait_obj(sync_obj *obj, sync_obj *timer_objp, sync_block *obj_sbp, s
 	return res;
 }
 
+/** コールアウトを起動する
+    @param[in] cur_tick コールアウト起動時のシステムタイマティック値
+ */
+void
+_tim_invoke_callout(ticks cur_tick) {
+	intrflags            flags;
+	timer_callout *callout_ref;
+	timer_callout        *next;
+
+	spinlock_lock_disable_intr( &timer_callout_queue.lock, &flags );
+
+	for (callout_ref = RB_MIN(timer_queue, &timer_callout_queue.que); callout_ref != NULL; callout_ref = next) {
+
+		next = RB_NEXT(timer_queue, &timer_callout_queue.que, callout_ref);
+		if ( callout_ref->expire <= cur_tick ) {
+
+			RB_REMOVE(timer_queue, &timer_callout_queue.que, callout_ref);
+
+			kassert( callout_ref->callout != NULL );
+			callout_ref->callout(callout_ref->data);
+		}
+	}
+
+	spinlock_unlock_restore_intr( &timer_callout_queue.lock, &flags );
+	
+}
+
+/** 指定した時間だけCPUを開放する
+    @param[in] outms タイムアウト時間(単位:ms)
+    @retval SYNC_WAI_TIMEOUT タイムアウトした
+ */
+sync_reason
+tim_wait(tim_tmout outms) {
+	intrflags           flags;
+	timer_callout          cb;
+	sync_obj        timer_obj; 
+	sync_reason           res;
+	timer_callout        *cbp;
+
+	init_timer_callout( &cb ); /* コールバック情報を初期化  */
+
+	 /*  同期オブジェクトを初期化  */
+	sync_init_object( &timer_obj, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT );
+
+	/*
+	 * タイムアウト情報を設定
+	 */
+	cb.tmout = outms;
+	cb.expire = ms_to_ticks(outms) + _tim_refer_uptime_lockfree();
+	cb.callout = timeout_handler;
+	cb.data = &timer_obj;
+
+	spinlock_lock_disable_intr( &timer_callout_queue.lock, &flags );
+
+	cbp = RB_INSERT(timer_queue, &timer_callout_queue.que, &cb );
+	kassert( cbp == NULL );
+
+	res = sync_wait(&timer_obj, &timer_callout_queue.lock);
+
+	spinlock_lock( &timer_obj.lock ); 
+	kassert( queue_is_empty( &timer_obj.que ) );  /*  キューが空であることを確認  */
+	spinlock_unlock( &timer_obj.lock ); 
+
+	spinlock_unlock_restore_intr( &timer_callout_queue.lock, &flags );
+
+	return res;
+}
+
 /** 同期オブジェクトをタイムアウト付きで待ち合わせる
     @param[in] obj   同期オブジェクト
     @param[in] outms タイムアウト時間(単位:ms)
+    @param[in] lock 同期オブジェクトに紐付けられたロック
     @retval SYNC_WAI_RELEASED  待ち要因が解消された 
     @retval SYNC_OBJ_DESTROYED オブジェクトが破棄された
     @retval SYNC_WAI_TIMEOUT タイムアウトした
 */
 sync_reason
-tim_wait_obj(sync_obj *obj, tim_tmout outms) {
+tim_wait_obj(sync_obj *obj, tim_tmout outms, spinlock *lock) {
 	sync_obj   timer_obj;
 	sync_block timer_sb;
 	sync_block obj_sb;
 	timer_callout cb;
 
 	kassert(obj != NULL);
+	kassert( spinlock_locked_by_self(lock) );
 
-	_tim_wait_obj_no_schedule(obj, &timer_obj, &obj_sb, &timer_sb, &cb, outms );
+	wait_time_obj_no_schedule(obj, &timer_obj, &obj_sb, &timer_sb, &cb, outms );
 
-	if ( thr_in_wait(current) )
+	if ( thr_in_wait(current) ) {
+
+		spinlock_unlock(lock);
 		sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
+		spinlock_lock(lock);
+	}
 
-	return _tim_finish_wait_obj(obj, &timer_obj, &obj_sb, &timer_sb, &cb);
+	return finish_wait_time_obj(obj, &timer_obj, &obj_sb, &timer_sb, &cb);
 }
 
 /** マイクロ秒待ちビジーループ

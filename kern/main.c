@@ -40,6 +40,7 @@ _setup_test_progs(void) {
 	//kserv_test();
 	//wait_test();
 	//thread_round_robin_test();
+	//mutex_test();
 }
 
 void

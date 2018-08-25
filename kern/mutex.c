@@ -62,8 +62,8 @@ mutex_locked_by_self(mutex *mtx){
 bool
 mutex_lock(mutex *mtx){
 	intrflags flags;
-	sync_block blk;
 	sync_reason rc;
+	bool       ret;
 
 	kassert( mtx != NULL );
 
@@ -83,24 +83,21 @@ mutex_lock(mutex *mtx){
 				++mtx->counter;
 				goto unlock_out;
 			}
-			_sync_wait_no_schedule( &mtx->mutex_waiter, &blk );
 
-			spinlock_unlock_restore_intr( &mtx->lock, &flags );
+			rc = sync_wait(&mtx->mutex_waiter, &mtx->lock);
+			if ( rc == SYNC_OBJ_DESTROYED ) {
 
-			if ( thr_in_wait(current) )			
-				sched_schedule();
-
-			rc = _sync_finish_wait( &mtx->mutex_waiter, &blk );
-			if ( rc == SYNC_OBJ_DESTROYED )
-				return false;
-
-			spinlock_lock_disable_intr( &mtx->lock , &flags );
+				ret = false;
+				goto unlock_out;
+			}
 		}
 	}
-unlock_out:
-	spinlock_unlock_restore_intr( &mtx->lock, &flags);
+	ret = true;
 
-	return true;
+unlock_out:
+	spinlock_unlock_restore_intr(&mtx->lock, &flags);
+
+	return ret;
 }
 
 void

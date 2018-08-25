@@ -492,7 +492,6 @@ thr_exit(exit_code rc) {
 	thread    *pthr;
 	thread    *cthr;
 	sync_reason res;
-	sync_block  blk;
 	list        *li;
 	list      *next;
 
@@ -551,17 +550,13 @@ thr_exit(exit_code rc) {
 	queue_add( &pthr->exit_waiters, &current->parent_link ); 
 	sync_wake( &pthr->children_wait, SYNC_WAI_RELEASED );
 
-	spinlock_unlock_restore_intr( &pthr->lock, &flags );
-
 	/*
 	 * 親スレッドの終了コード/資源情報回収を待ち合わせる
 	 */
-	_sync_wait_no_schedule( &current->parent_wait, &blk );
+	res=sync_wait(&current->parent_wait, &pthr->lock);
 
-	if ( thr_in_wait(current) )
-		sched_schedule();  /*  休眠実施  */
+	spinlock_unlock_restore_intr( &pthr->lock, &flags );
 
-	res = _sync_finish_wait( &current->parent_wait, &blk);
 	kassert( (res != SYNC_WAI_WAIT) && 
 	    ( res != SYNC_WAI_TIMEOUT ) &&
 	    ( res != SYNC_WAI_DELIVEV ) );
@@ -745,22 +740,23 @@ thr_wait(tid wait_tid, thread_wait_flags wflags, tid *exit_tidp, exit_code *rcp)
 		while( queue_is_empty(&current->exit_waiters ) )	{
 
 			/* 子スレッドを待ち合わせる  */
-			spinlock_unlock_restore_intr( &current->lock, &flags );
+			if ( wflags & THR_WAIT_NONBLOCK ) {
 
-			if ( wflags & THR_WAIT_NONBLOCK )
+				spinlock_unlock_restore_intr( &current->lock, &flags );
 				return -ENOENT;  /*  終了した子スレッドがない  */
+			}
+			res = sync_wait( &current->children_wait, &current->lock);
+			if ( res != SYNC_WAI_RELEASED ) {
 
-			res = sync_wait( &current->children_wait );
-			if ( res != SYNC_WAI_RELEASED )
+				spinlock_unlock_restore_intr( &current->lock, &flags );
 				return -EAGAIN;
+			}
+			if ( res == SYNC_WAI_DELIVEV ) {
 
-			if ( res == SYNC_WAI_DELIVEV )
+				spinlock_unlock_restore_intr( &current->lock, &flags );
 				return -EINTR;
-
-			spinlock_lock_disable_intr( &current->lock, &flags );
+			}
 		}
-
-		kassert( !queue_is_empty(&current->exit_waiters) );
 
 		for( cthr = NULL, li = queue_ref_top( &current->exit_waiters );
 		     li != (list *)&current->exit_waiters;
@@ -782,7 +778,7 @@ thr_wait(tid wait_tid, thread_wait_flags wflags, tid *exit_tidp, exit_code *rcp)
 				}
 					
 			} else if ( (wflags & THR_WAIT_PROC ) && ( cthr->p != current->p ) )
-					continue;
+				continue;  /*  待ち合わせ対象のスレッドでない */
 
 			goto found;  /*  処理対象が見つかった  */
 		}

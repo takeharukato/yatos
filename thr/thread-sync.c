@@ -26,6 +26,58 @@
 
 #include <thr/thr-internal.h>
 
+/** 同期オブジェクトを待ち合わせる
+    @param[in] obj        同期オブジェクト
+    @param[in] blk        同期ブロック
+*/
+static void
+wait_sync_obj_no_schedule(sync_obj *obj, sync_block *blkp) {
+	intrflags flags;
+
+	kassert( obj != NULL );
+	kassert( blkp != NULL );
+	kassert( valid_wait_status( obj->wait_kind ) );
+
+	_sync_init_block( blkp );  /*  同期ブロックを初期化  */
+
+	spinlock_lock_disable_intr( &obj->lock, &flags ); 
+
+	/* 自スレッドの状態を資源待ちに設定  */
+	current->status = obj->wait_kind;
+
+	queue_add( &obj->que, &blkp->olink );  /*  blkを同期オブジェクトのキューに追加  */
+	
+	spinlock_unlock_restore_intr( &obj->lock, &flags );
+
+	return;
+}
+/** 同期待ちの後処理を実施
+    @param[in] obj 同期オブジェクト
+    @param[in] blk 同期ブロック
+    @retval SYNC_WAI_RELEASED  待ち要因が解消された 
+    @retval SYNC_OBJ_DESTROYED オブジェクトが破棄された
+ */
+static sync_reason
+finish_wait(sync_obj *obj, sync_block *blk) {
+	intrflags flags;
+	sync_reason res;
+
+	kassert( obj != NULL );
+	kassert( blk != NULL );
+
+	res = blk->reason;
+	spinlock_lock_disable_intr( &obj->lock, &flags ); 
+	if ( ( ev_has_pending_events(current) ) &&
+	    ( !list_not_linked( &blk->olink ) ) ) {
+		
+		list_del( &blk->olink );
+		res = SYNC_WAI_DELIVEV;  /*  イベントによる起床  */
+	}
+	spinlock_unlock_restore_intr( &obj->lock, &flags ); 
+
+	return res;
+}
+
 /** 同期ブロックを初期化し, 自スレッドを待ちスレッドに設定する
     @param[in] blk 初期化対象の同期ブロック
 */
@@ -57,76 +109,29 @@ sync_init_object(sync_obj *obj, sync_pol pol, thr_state wait_kind) {
 }
 
 /** 同期オブジェクトを待ち合わせる
-    @param[in] obj        同期オブジェクト
-    @param[in] blk        同期ブロック
-*/
-void
-_sync_wait_no_schedule(sync_obj *obj, sync_block *blkp) {
-	intrflags flags;
-
-	kassert( obj != NULL );
-	kassert( blkp != NULL );
-	kassert( valid_wait_status( obj->wait_kind ) );
-
-	_sync_init_block( blkp );  /*  同期ブロックを初期化  */
-
-	spinlock_lock_disable_intr( &obj->lock, &flags ); 
-
-	/* 自スレッドの状態を資源待ちに設定  */
-	current->status = obj->wait_kind;
-
-	queue_add( &obj->que, &blkp->olink );  /*  blkを同期オブジェクトのキューに追加  */
-	
-	spinlock_unlock_restore_intr( &obj->lock, &flags );
-
-	return;
-}
-/** 同期待ちの後処理を実施
-    @param[in] obj 同期オブジェクト
-    @param[in] blk 同期ブロック
-    @retval SYNC_WAI_RELEASED  待ち要因が解消された 
-    @retval SYNC_OBJ_DESTROYED オブジェクトが破棄された
- */
-sync_reason
-_sync_finish_wait(sync_obj *obj, sync_block *blk) {
-	intrflags flags;
-	sync_reason res;
-
-	kassert( obj != NULL );
-	kassert( blk != NULL );
-
-	res = blk->reason;
-	spinlock_lock_disable_intr( &obj->lock, &flags ); 
-	if ( ( ev_has_pending_events(current) ) &&
-	    ( !list_not_linked( &blk->olink ) ) ) {
-		
-		list_del( &blk->olink );
-		res = SYNC_WAI_DELIVEV;  /*  イベントによる起床  */
-	}
-	spinlock_unlock_restore_intr( &obj->lock, &flags ); 
-
-	return res;
-}
-
-/** 同期オブジェクトを待ち合わせる
-    @param[in] obj 同期オブジェクト
+    @param[in] obj  同期オブジェクト
+    @param[in] lock 同期オブジェクトに紐付けられたロック
     @retval SYNC_WAI_RELEASED  待ち要因が解消された 
     @retval SYNC_OBJ_DESTROYED オブジェクトが破棄された
 */
 sync_reason
-sync_wait(sync_obj *obj) {
+sync_wait(sync_obj *obj, spinlock *lock){
 	sync_block blk;
 	sync_reason rc;
 
 	kassert( obj != NULL );
 	kassert( valid_wait_status( obj->wait_kind ) );
+	kassert( spinlock_locked_by_self(lock) );
 
-	_sync_wait_no_schedule(obj, &blk);
+	wait_sync_obj_no_schedule(obj, &blk);
+	if ( thr_in_wait(current) ) {
 
-	if ( thr_in_wait(current) )
+		spinlock_unlock(lock);
 		sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
+		spinlock_lock(lock);
+	}
 
-	rc = _sync_finish_wait(obj, &blk);
+	rc = finish_wait(obj, &blk);
 
 	return rc;  /*  起床要因を返却  */
 }

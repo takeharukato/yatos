@@ -48,10 +48,11 @@ reaper_thread(void __attribute__ ((unused)) *arg) {
 		    current->tid);
 #endif  /*  DEBUG_REAPER_THREAD  */
 
-		res = sync_wait( &ktr->wai );
+		spinlock_lock_disable_intr( &tq->lock, &flags );
+
+		res = sync_wait( &ktr->wai, &tq->lock );
 		kassert( res == SYNC_WAI_RELEASED );
 
-		spinlock_lock_disable_intr( &tq->lock, &flags );
 #if defined(DEBUG_REAPER_THREAD)
 		kprintf(KERN_INF, "reaper thread[tid:%d] wakeup\n", 
 		    current->tid);

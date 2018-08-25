@@ -21,15 +21,29 @@
 
 #include <kern/tst-progs.h>
 
-static sync_obj sobj1;  /*  同期オブジェクト  */
-static sync_obj sobj2;  /*  同期オブジェクト  */
-static sync_obj sobj3;  /*  同期オブジェクト  */
+typedef struct _tst_sync_obj{
+	spinlock lock;
+	sync_obj obj;
+}tst_sync_obj;
+
+#define TST_SYNC_OBJECT_INITIALIZER(tso)			\
+	{							\
+	.lock = __SPINLOCK_INITIALIZER,				\
+	.obj = __SYNC_OBJECT_INITIALIZER(tso.obj, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT), \
+	}
+
+/*  同期オブジェクト  */
+static tst_sync_obj sobj1 = TST_SYNC_OBJECT_INITIALIZER(sobj1);
+static tst_sync_obj sobj2 = TST_SYNC_OBJECT_INITIALIZER(sobj2);
+static tst_sync_obj sobj3 = TST_SYNC_OBJECT_INITIALIZER(sobj3);
+
 int
 kthreadA(void __attribute__ ((unused)) *arg) {
 	sync_reason res;
 
 	kprintf(KERN_INF, "ThreadA:tid=%d thread=%p\n", 
 	    current->tid, current);
+
 	kprintf(KERN_INF, "ThreadA:wait 1000ms\n");
 	res = tim_wait(1000);
 	if ( res == SYNC_WAI_TIMEOUT ) {
@@ -41,7 +55,11 @@ kthreadA(void __attribute__ ((unused)) *arg) {
 	}
 
 	kprintf(KERN_INF, "ThreadA:wait on sobj1 800ms\n");
-	res = tim_wait_obj(&sobj1, 800);
+
+	spinlock_lock(&(sobj1.lock));
+	res = tim_wait_obj(&sobj1.obj, 800, &sobj1.lock);
+	spinlock_unlock(&(sobj1.lock));
+
 	if ( res == SYNC_WAI_TIMEOUT ) {
 
 		kprintf(KERN_INF, "ThreadA:time out OK\n");
@@ -49,10 +67,16 @@ kthreadA(void __attribute__ ((unused)) *arg) {
 		
 		kprintf(KERN_INF, "ThreadA:time out NG res=%d\n", res);
 	}
+
 	kprintf(KERN_INF, "ThreadA:wake up threads on sobj2.\n");
-	sync_wake(&sobj2, SYNC_WAI_RELEASED);
+	sync_wake(&sobj2.obj, SYNC_WAI_RELEASED);
+
 	kprintf(KERN_INF, "ThreadA:wait with time out on sobj3 2000ms\n");
-	res = tim_wait_obj(&sobj3, 2000);
+
+	spinlock_lock(&(sobj3.lock));
+	res = tim_wait_obj(&sobj3.obj, 2000, &sobj3.lock);
+	spinlock_unlock(&(sobj3.lock));
+
 	if ( res == SYNC_WAI_RELEASED ) {
 		
 		kprintf(KERN_INF, "ThreadA:wake up by threadB OK\n");
@@ -74,13 +98,17 @@ kthreadB(void __attribute__ ((unused)) *arg) {
 	    current->tid, current);
 
 	kprintf(KERN_INF, "ThreadB: wait on sobj2\n");
-	res = sync_wait( &sobj2);
+	spinlock_lock(&(sobj2.lock));
+	res = sync_wait( &sobj2.obj, &(sobj2.lock));
+	spinlock_unlock(&(sobj2.lock));
 	if ( res == SYNC_WAI_RELEASED)
 		kprintf(KERN_INF, "ThreadB: wake up from sobj2 OK\n");
 	else
 		kprintf(KERN_INF, "ThreadB: wake up from sobj2 NG res=%d\n", res);
+
 	kprintf(KERN_INF, "ThreadB: wake up threads on sobj3\n");
-	sync_wake(&sobj3, SYNC_WAI_RELEASED);
+	sync_wake(&sobj3.obj, SYNC_WAI_RELEASED);
+
 	kprintf(KERN_INF, "ThreadB: Exit ThreadB with return 0\n");
 
 	return 0;
@@ -90,10 +118,6 @@ void
 timer_test(void) {
 	int              rc;
 	thread *thrA, *thrB;
-
-	sync_init_object(&sobj1, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT);
-	sync_init_object(&sobj2, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT);
-	sync_init_object(&sobj3, SYNC_WAKE_FLAG_ALL, THR_TSTATE_WAIT);
 
 	rc = thr_new_thread(&thrA);
 	kassert( rc == 0 );

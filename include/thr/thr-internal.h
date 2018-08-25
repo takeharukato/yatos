@@ -33,6 +33,4 @@ void _sched_wakeup(struct _thread *_thr);
 void _sync_init_block(struct _sync_block *_blk);
 void _thr_enter_dead(void);
 void _thr_do_idle(void);
-void _sync_wait_no_schedule(struct _sync_obj *_obj, struct _sync_block *_blkp);
-enum _sync_reason _sync_finish_wait(sync_obj *_obj, sync_block *_blk);
 #endif  /*  __THR_INTERNAL_H   */

@@ -29,4 +29,5 @@ extern void lpc2_test(void);
 extern void kserv_test(void);
 extern void wait_test(void);
 extern void thread_round_robin_test(void);
+extern void mutex_test(void);
 #endif  /*  _KERN_TST_PROGS_H   */

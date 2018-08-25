@@ -59,15 +59,15 @@ typedef struct _sync_obj{
 	queue            que;  /*< キュー本体           */
 }sync_obj;
 
-#define __WAIT_OBJECT_INITIALIZER(_que, _flags, _wait_kind)	\
+#define __SYNC_OBJECT_INITIALIZER(_sobj, _pol, _wait_kind)	\
 	{							\
 	.lock=__SPINLOCK_INITIALIZER,			        \
-	.wbflags = _flags,			                \
-	.que = __QUEUE_INITIALIZER(_que),	                \
 	.wait_kind = (_wait_kind),		                \
+	.policy = _pol,				                \
+	.que = __QUEUE_INITIALIZER(&(_sobj.que)),	        \
 	}
 
 void sync_init_object(sync_obj *_obj, sync_pol _pol, thr_state _wait_kind);
-sync_reason sync_wait(sync_obj *_obj);
+sync_reason sync_wait(sync_obj *_obj, spinlock *_lock);
 void sync_wake(sync_obj *_obj, sync_reason _reason);
 #endif  /*  _KERN_THREAD_SYNC_H   */

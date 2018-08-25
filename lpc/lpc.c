@@ -208,10 +208,6 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 	msg_queue         *q;
 	msg         *new_msg;
 	sync_reason      res;
-	sync_block       blk;
-	sync_obj   timer_obj;
-	sync_block  timer_sb;
-	timer_callout     cb;
 
 	kassert( m != NULL );
 
@@ -252,20 +248,14 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 			/* ブロッキング送信
 			 * 受信者待ち同期オブジェクトで休眠
 			 */
-			_sync_wait_no_schedule( &q->wait_reciever, &blk );
-			spinlock_unlock( &q->lock );
-
-			if ( thr_in_wait(current) )
-				sched_schedule();  /*  休眠実施  */			
-
-			res = _sync_finish_wait(&q->wait_reciever, &blk);
+			res = sync_wait(&q->wait_reciever, &q->lock);
 			if ( res == SYNC_OBJ_DESTROYED ) {
 
                                 /*  スレッド破棄に伴ってキューが消失
-				 *  するためメモリだけ解放して抜ける
+				 *  したためメモリだけ解放して抜ける
 				 */
 				rc = -ENOENT;
-				goto msg_free_nolock_out;
+				goto msg_free_out;
 			}
 
 			if ( res == SYNC_WAI_DELIVEV ) {
@@ -273,33 +263,22 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
                                 /*  イベント受信時は, メモリを解放して抜ける
 				 */
 				rc = -EINTR;
-				goto msg_free_nolock_out;
+				goto msg_free_out;
 			}
-
-			spinlock_lock( &q->lock );
 		} else {
 			
 			/* タイムアウト付きのブロッキング送信
 			 * 受信者待ちとタイムアウトの2つの同期オブジェクトに
 			 * 対して休眠する
 			 */
-			_tim_wait_obj_no_schedule(&q->wait_reciever, &timer_obj, 
-			    &blk, &timer_sb, &cb, tmout );
-			spinlock_unlock( &q->lock );
-
-			if ( thr_in_wait(current) )
-				sched_schedule();  /*  休眠実施  */			
-
-			res = _tim_finish_wait_obj(&q->wait_reciever, &timer_obj, 
-			    &blk, &timer_sb, &cb);
+			res = tim_wait_obj(&q->wait_reciever, tmout, &q->lock );
 			if ( res == SYNC_OBJ_DESTROYED ) {
 
                                 /*  スレッド破棄に伴ってキューが消失
 				 *  するためメモリだけ解放して抜ける
 				 */
 				rc = -ENOENT;
-				goto msg_free_nolock_out;
-
+				goto msg_free_out;
 			}
 
 			if ( res == SYNC_WAI_TIMEOUT ) {
@@ -307,7 +286,7 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
                                 /*  タイムアウト時は, メモリを解放して抜ける
 				 */
 				rc = -EAGAIN;
-				goto msg_free_nolock_out;
+				goto msg_free_out;
 			}
 
 			if ( res == SYNC_WAI_DELIVEV ) {
@@ -315,25 +294,18 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
                                 /*  イベント受信時は, メモリを解放して抜ける
 				 */
 				rc = -EINTR;
-				goto msg_free_nolock_out;
+				goto msg_free_out;
 			}
 
+			/* 待ち中は, 全スレッドロックを取っていないので, 
+			 * 送信先スレッドが消失する可能性がある。
+			 * 送信先スレッド消失は, 上記のオブジェクト破棄
+			 * で通知されるはずなのでアサーションとして扱う。
+			 */
 			acquire_all_thread_lock( &flags );
 			thr = thr_find_thread_by_tid_nolock(dest);
-			if ( thr == NULL ) {
-
-				/* 待ち中は, 全スレッドロックを取っていないので, 
-				 * 送信先スレッドが消失する可能性がある。
-				 * 送信先スレッド消失時は, メモリを解放して抜ける
-				 */
-				release_all_thread_lock(&flags);
-				rc = -ENOENT;
-				goto msg_free_nolock_out;
-			}
-
-			q = &thr->mque;
-			spinlock_lock( &q->lock );
 			release_all_thread_lock(&flags);
+			kassert ( thr != NULL );
 		}
 	}
 
@@ -347,25 +319,20 @@ lpc_send(endpoint dest, lpc_tmout tmout, void *m){
 
 	lpc_msg_add_nolock(q, new_msg);  /*  メッセージキューに追加  */
 
+	spinlock_unlock(&q->lock);        /* キューロックを開放  */
 
         /*
 	 *  送信完了待ち
 	 */
-	spinlock_lock( &new_msg->cqlock);
+	spinlock_lock(&new_msg->cqlock);  /* 受信者が起床処理を待ち合わせるように
+					   *  送信完了待ちキューをロック
+					   */
+	sync_wake( &q->wait_sender, SYNC_WAI_RELEASED);  /*  送信待ち受信者を起床  */
+	/*  送信完了待ち同期オブジェクトでの休眠  */
+	res = sync_wait(&new_msg->completion, &new_msg->cqlock);
 
-	/*  送信完了待ち同期オブジェクトでの休眠準備  */
-	_sync_wait_no_schedule( &new_msg->completion, &blk );
+	spinlock_unlock(&new_msg->cqlock);  /* 送信完了待ちキューをアンロック */
 
-	spinlock_unlock( &new_msg->cqlock );
-
-	sync_wake( &q->wait_sender, SYNC_WAI_RELEASED);  /*  受信者を起床  */
-
-	spinlock_unlock( &q->lock );
-
-	if ( thr_in_wait(current) )
-		sched_schedule();  /*  休眠実施  */			
-
-	res = _sync_finish_wait( &new_msg->completion, &blk);
 	if ( res == SYNC_OBJ_DESTROYED )   /* メッセージ破棄による起床  */
 		return  -ENOENT;
 
@@ -390,14 +357,6 @@ msg_free_out:
 	spinlock_unlock( &q->lock );
 
 	return rc;
-
-msg_free_nolock_out:
-	kassert( !spinlock_locked_by_self( &q->lock ) );
-	kassert( !all_thread_locked_by_self() );
-
-	lpc_msg_free(new_msg);
-
-	return rc;
 }
 
 /** メッセージを受信する
@@ -415,10 +374,6 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
 	intrflags      flags;
 	msg            *rmsg;
 	sync_reason      res;
-	sync_block       blk;
-	sync_obj   timer_obj;
-	sync_block  timer_sb;
-	timer_callout     cb;
 
 	spinlock_lock_disable_intr( &current->mque.lock, &flags);
 
@@ -444,54 +399,47 @@ lpc_recv(endpoint src, lpc_tmout tmout, void *m, endpoint *msg_src){
 			/* ブロッキング受信
 			 * 送信者待ち同期オブジェクトで休眠
 			 */
-			_sync_wait_no_schedule( &current->mque.wait_sender, &blk );
-
-			spinlock_unlock_restore_intr( &current->mque.lock, &flags);
-
-			if ( thr_in_wait(current) )
-				sched_schedule();  /*  休眠実施  */			
-
-			res = _sync_finish_wait( &current->mque.wait_sender, &blk );
+			res = sync_wait( &current->mque.wait_sender, 
+			    &current->mque.lock );
 			/*  自スレッドのキューであるためオブジェクト破壊
 			 *  で返ることはないためアサーションを先に判定
 			 */
 			kassert( res != SYNC_OBJ_DESTROYED );
                          /* メッセージキュー破棄による復帰  */
-			if ( res == SYNC_OBJ_DESTROYED )   
-				return -ENOENT;
-			/*  イベント受信による復帰  */
-			if ( res == SYNC_WAI_DELIVEV )
-				return -EINTR;
+			if ( res == SYNC_OBJ_DESTROYED ) {
 
-			spinlock_lock_disable_intr( &current->mque.lock, &flags);
+				rc =  -ENOENT;
+				goto unlock_out;
+			}
+			/*  イベント受信による復帰  */
+			if ( res == SYNC_WAI_DELIVEV ) {
+
+				rc = -EINTR;
+				goto unlock_out;
+			}
 		} else {
 
 			/* タイムアウト付きのブロッキング受信
 			 * 送信者待ちとタイムアウトの2つの同期オブジェクトに
 			 * 対して休眠する
 			 */
-			_tim_wait_obj_no_schedule( &current->mque.wait_sender, 
-			    &timer_obj, &blk, &timer_sb, &cb, tmout );
-			spinlock_unlock_restore_intr( &current->mque.lock, &flags);
-
-			if ( thr_in_wait(current) )
-				sched_schedule();  /*  休眠実施  */			
-
-			res = _tim_finish_wait_obj(&current->mque.wait_sender, 
-			    &timer_obj, &blk, &timer_sb, &cb);
-
+			res = tim_wait_obj(&current->mque.wait_sender, tmout, 
+			    &current->mque.lock );
 			/*  自スレッドのキューであるためオブジェクト破壊
 			 *  で返ることはない
 			 */
 			kassert( res != SYNC_OBJ_DESTROYED );
 
-			if ( res == SYNC_WAI_TIMEOUT ) 
-				return -EAGAIN;  /*  タイムアウトによる復帰  */
+			if ( res == SYNC_WAI_TIMEOUT ) {
 
-			if ( res == SYNC_WAI_DELIVEV )
-				return -EINTR;  /*  イベント受信による復帰  */
-			
-			spinlock_lock_disable_intr( &current->mque.lock, &flags);
+				rc = -EAGAIN;  /*  タイムアウトによる復帰  */
+				goto unlock_out;
+			}
+			if ( res == SYNC_WAI_DELIVEV ) {
+
+				rc = -EINTR;  /*  イベント受信による復帰  */
+				goto unlock_out;
+			}
 		}
 		
 	}
