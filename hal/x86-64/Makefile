@@ -32,7 +32,6 @@ ${targets}: mk-hal-libs ${hal-config-boot-obj}
 	${NM} -a -n ${top}/kernel-dbg.elf > ${top}/kernel.sym
 	${STRIP} -g ${top}/kernel.elf
 
-
 gen-asm-offset: 
 	${MAKE} -C asm-offset 
 
@@ -54,8 +53,14 @@ clean-kern:
 run: ${top}/${program_name}.iso
 	${QEMU} ${QEMU_OPT} -cdrom $<
 
+run-nox: ${top}/${program_name}.iso
+	${QEMU} ${QEMU_OPT} -nographic -cdrom $<
+
 run-debug: ${top}/${program_name}.iso
 	${QEMU} ${QEMU_OPT} ${QEMU_DBG_OPT} -cdrom $<
+
+run-debug-nox: ${top}/${program_name}.iso
+	${QEMU} ${QEMU_OPT} -nographic ${QEMU_DBG_OPT} -cdrom $<
 
 mk-hal-libs: 
 	for dir in ${subdirs} ; do \

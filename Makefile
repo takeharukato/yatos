@@ -45,7 +45,13 @@ subsystem: hal
 run: hal all
 	${MAKE} -C hal/hal $@
 
+run-nox: hal all
+	${MAKE} -C hal/hal $@
+
 run-debug: hal all
+	${MAKE} -C hal/hal $@
+
+run-debug-nox: hal all
 	${MAKE} -C hal/hal $@
 
 clean-kern:
