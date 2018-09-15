@@ -48,15 +48,12 @@ x86_64_dispatch_syscall(trap_context *ctx) {
 	switch( no ) {
 
 	case SYS_YATOS_EV_REG_EVHANDLER:
-
 		rc = svc_register_common_event_handler((void *)ctx->rdi);
 		ctx->rax = (uint64_t)rc;
 		break;
-
 	case SYS_YATOS_EV_RETURN:
 		_x86_64_return_from_event_handler((event_frame *)ctx->rdi, ctx);
 		break;
-
 	case SYS_YATOS_THR_YIELD:
 		rc = svc_thr_yield();
 		ctx->rax = (uint64_t)rc;
@@ -76,7 +73,6 @@ x86_64_dispatch_syscall(trap_context *ctx) {
 		rc = svc_lpc_send(ctx->rdi, ctx->rsi, (void *)ctx->rdx);
 		ctx->rax = (uint64_t)rc;
 		break;
-
 	case SYS_YATOS_LPC_RECV:
 		rc = svc_lpc_recv(ctx->rdi, ctx->rsi, (void *)ctx->rdx, (void *)ctx->r10);
 		ctx->rax = (uint64_t)rc;

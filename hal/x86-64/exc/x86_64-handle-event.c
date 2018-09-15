@@ -128,6 +128,9 @@ x86_64_setup_event_handler(trap_context *ctx) {
 
 	spinlock_unlock_restore_intr( &current->p->lock, &flags );
 
+	/*
+	 * ユーザ区間のハンドラに制御を移すように割込みコンテキストを書換え
+	 */
 	ctx->rip = (uint64_t)current->p->u_evhandler;
 	ctx->rsp = (uint64_t)user_ef;
 	ctx->rdi = (uint64_t)newev->info.no;
@@ -153,9 +156,8 @@ exit_out:
 void
 x86_64_handle_post_exception(trap_context  __attribute__ ((unused))   *ctx) {
 
-	while ( ti_dispatch_delayed( ti_get_current_tinfo() ) ) {
+	while ( ti_dispatch_delayed( ti_get_current_tinfo() ) ) 
 		sched_schedule();   /*  遅延ディスパッチを処理  */
-	}
 
 	if ( hal_is_intr_from_user(ctx) )
 		x86_64_setup_event_handler(ctx);

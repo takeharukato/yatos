@@ -149,6 +149,12 @@ sync_wake(sync_obj *obj, sync_reason reason) {
 
 	spinlock_lock_disable_intr( &obj->lock, &flags );  
 
+	if ( queue_is_empty( &obj->que ) ) {
+
+		spinlock_unlock_restore_intr( &obj->lock, &flags );
+		return;
+	}
+
 	while( !queue_is_empty( &obj->que ) ) {
 		
 		blk = CONTAINER_OF( queue_get_top( &obj->que ),
@@ -169,6 +175,6 @@ sync_wake(sync_obj *obj, sync_reason reason) {
 	
 	spinlock_unlock_restore_intr( &obj->lock, &flags );
 	/*  スレッド起床に伴う再スケジュール  */
-	if ( !ti_dispatch_disabled(current->ti) ) 	 
+	if ( !ti_dispatch_disabled(current->ti) )
 		sched_schedule();
 }
