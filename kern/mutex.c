@@ -73,7 +73,7 @@ mutex_lock(mutex *mtx){
 
 			++mtx->counter;
 			mtx->owner = current;
-			goto unlock_out;
+			goto success_out;
 		}
 
 		if ( mtx->counter > 0 ){
@@ -81,7 +81,7 @@ mutex_lock(mutex *mtx){
 			if ( ( mtx->owner == current ) &&
 			    (mtx->mtx_flags & MTX_FLAG_RECURSIVE ) ) {
 				++mtx->counter;
-				goto unlock_out;
+				goto success_out;
 			}
 
 			rc = sync_wait(&mtx->mutex_waiter, &mtx->lock);
@@ -92,6 +92,8 @@ mutex_lock(mutex *mtx){
 			}
 		}
 	}
+
+success_out:
 	ret = true;
 
 unlock_out:
