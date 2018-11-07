@@ -35,9 +35,9 @@ extern uint64_t _x86_64_get_tsc_per_us(void);
  */
 static void 
 x86_64_calcluate_tsc_per_sec(void) {
-	volatile uint8_t  val;
-	uint64_t       t1, t2;
-	uint64_t   tsc_per_us;
+	volatile uint8_t      val;
+	volatile uint64_t  t1, t2;
+	uint64_t       tsc_per_us;
 
 #if defined(DEBUG_UDELAY_CALIBRATION)
 	kprintf(KERN_DBG, "CPU[%d] udelay calibration with RTC ... ", current_cpu());
