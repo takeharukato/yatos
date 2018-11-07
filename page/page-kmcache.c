@@ -305,6 +305,7 @@ calc_off_slab_size(kmem_cache *kcp, size_t *sizep) {
 
 	kassert( sizep != NULL );
 
+	min_order = 0;
 	min_size = sizeof(slab) + calc_slab_data_size(kcp);
 	calc_page_order( min_size, &min_order );
 
@@ -405,6 +406,7 @@ kmem_cache_grow_nolock( kmem_cache *kcp, slab_flags __attribute__ ((unused)) sfl
 
 	kassert( PAGE_ALIGNED(kcp->slab_size) );
 
+	order = 0;
 	calc_page_order(kcp->slab_size, &order);
 	rc = alloc_buddy_pages( &kvaddr,  order, 0 );
 	if ( rc != 0 ) {

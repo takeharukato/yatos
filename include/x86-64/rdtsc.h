@@ -24,7 +24,7 @@ static inline uint64_t
 rdtsc(void) {
 	unsigned long lo, hi;
 
-        asm( "rdtsc" : "=a" (lo), "=d" (hi) ); 
+        __asm__ __volatile__( "rdtsc" : "=a" (lo), "=d" (hi) ); 
 
         return( lo | (hi << 32) );
 }

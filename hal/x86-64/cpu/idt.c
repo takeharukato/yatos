@@ -590,7 +590,7 @@ show_one_idt(int no, idt_descriptor *idtp) {
 static void
 check_vector_setup(void) {
 
-	asm("int %0\n\t"
+	__asm__ __volatile__("int %0\n\t"
 	    :/* No output */
 	    : "i" (TRAP_SYSCALL));
 }

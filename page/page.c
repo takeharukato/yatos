@@ -382,6 +382,7 @@ alloc_buddy_pages(void **addrp, page_order order,
 	intrflags      flags;
 
 	spinlock_lock_disable_intr(&global_pfque.lock, &flags);
+
 	for( li = queue_ref_top( &global_pfque.que );
 	     li != (list *)&global_pfque.que;
 	     li = li->next ) {
@@ -406,6 +407,8 @@ alloc_buddy_pages(void **addrp, page_order order,
 
 		spinlock_unlock(&pfi->buddy.lock);
 	}
+
+	rc = -ENOMEM;
 
 unlock_out:
 	spinlock_unlock_restore_intr(&global_pfque.lock, &flags);

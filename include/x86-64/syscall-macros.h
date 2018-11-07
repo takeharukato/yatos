@@ -36,7 +36,7 @@ typedef int64_t  syscall_res_type;  /*< システムコール結果の型  */
 
 #define syscall0( res, no)			\
 	do{					\
-	asm("int $0x90\n\t"			\
+	__asm__ __volatile__ ("int $0x90\n\t"	\
 	    : "=a" (res)			\
 	    : "a"(no)				\
 	    :  "memory", "cc", "r11", "rcx");	\
@@ -45,7 +45,7 @@ typedef int64_t  syscall_res_type;  /*< システムコール結果の型  */
 
 #define syscall1( res, no, arg1)		\
 	do{					\
-	asm("int $0x90\n\t"			\
+	__asm__ __volatile__ ("int $0x90\n\t"	\
 	    : "=a" (res)			\
 	    : "a"(no), "D"(arg1)		\
 	    :  "memory", "cc", "r11", "rcx");	\
@@ -53,7 +53,7 @@ typedef int64_t  syscall_res_type;  /*< システムコール結果の型  */
 
 #define syscall2( res, no, arg1, arg2)		\
 	do{					\
-	asm("int $0x90\n\t"			\
+	__asm__ __volatile__ ("int $0x90\n\t"	\
 	    : "=a" (res)			\
 	    : "a"(no), "D"(arg1), "S"(arg2)	\
 	    :  "memory", "cc", "r11", "rcx");	\
@@ -61,7 +61,7 @@ typedef int64_t  syscall_res_type;  /*< システムコール結果の型  */
 
 #define syscall3( res, no, arg1, arg2, arg3)	        \
 	do{					        \
-	asm("int $0x90\n\t"			        \
+	__asm__ __volatile__ ("int $0x90\n\t"		\
 	    : "=a" (res)				\
 	    : "a"(no), "D"(arg1), "S"(arg2), "d"(arg3)	\
 	    :  "memory", "cc", "r11", "rcx");	        \
@@ -71,7 +71,7 @@ typedef int64_t  syscall_res_type;  /*< システムコール結果の型  */
 	do{								 \
 		register uint64_t r10 asm("r10") = (uint64_t)arg4;	 \
 									 \
-		asm("int $0x90\n\t"					 \
+		__asm__ __volatile__ ("int $0x90\n\t"			 \
 		    : "=a" (res)					 \
 		    : "a"(no), "D"(arg1), "S"(arg2), "d"(arg3), "r"(r10) \
 		    :  "memory", "cc", "r11", "rcx");			 \
@@ -82,7 +82,7 @@ typedef int64_t  syscall_res_type;  /*< システムコール結果の型  */
 		register uint64_t r10 asm("r10") = (uint64_t)arg4;	 \
 		register uint64_t  r8  asm("r8") = (uint64_t)arg5;	 \
 									 \
-		asm("int $0x90\n\t"					 \
+		__asm__ __volatile__ ("int $0x90\n\t"			 \
 		    : "=a" (res)					 \
 		    : "a"(no), "D"(arg1), "S"(arg2), "d"(arg3),		 \
 		    , "r"(r10), "r"(r8)					 \

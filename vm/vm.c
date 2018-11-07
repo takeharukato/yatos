@@ -389,6 +389,8 @@ vm_copy_vma(vma *dest, vma *src) {
 	/*
 	 * ページが割り当てられている領域をコピーする
 	 */
+	kassert( ( src->start < src->end ) && ( dest->start < dest->end ) );
+
 	for( saddr = src->start, daddr = dest->start;
 	     ( ( saddr < src->end ) && ( daddr < dest->end ) ); 
 	     saddr += PAGE_SIZE, daddr += PAGE_SIZE ) {
@@ -403,8 +405,12 @@ vm_copy_vma(vma *dest, vma *src) {
 			memcpy(new_page, (void *)old_page, PAGE_SIZE); 
 			rc = hal_map_user_page(dest->as, (uintptr_t)daddr, 
 			    (uintptr_t)new_page, dest->prot );
+			if ( rc != 0 )
+				goto error_out;
 		}
 	}
+
+	rc = 0;
 
 error_out:
 	spinlock_unlock( &dest->lock );
