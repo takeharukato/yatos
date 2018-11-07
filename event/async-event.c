@@ -176,6 +176,8 @@ ev_send_to_all_threads_in_process(proc *p, event_node *node) {
 		}
 	}
 
+	rc = 0;
+
 error_out:
 	return rc;
 }

@@ -18,7 +18,8 @@
 int 
 strncmp(const char *s1, const char *s2, size_t n){
 	signed char rc;
-
+	
+	rc = (*s2 == '\0') ? (0) : (-1);
 	for(; *s1 != '\0'; ++s1, ++s2, --n) {
 
 		rc = *s1 - *s2;
