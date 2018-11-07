@@ -51,16 +51,16 @@ clean-kern:
 	${RM} ${top}/kernel.elf ${top}/kernel-dbg.elf ${top}/kernel.asm ${top}/kernel.syms
 
 run: ${top}/${program_name}.iso
-	${QEMU} ${QEMU_OPT} -cdrom $<
+	${QEMU} ${QEMU_OPT} ${QEMU_GRAPHIC_OPT} -cdrom $<
 
 run-nox: ${top}/${program_name}.iso
-	${QEMU} ${QEMU_OPT} -nographic -cdrom $<
+	${QEMU} ${QEMU_OPT} ${QEMU_NOX_OPT} -cdrom $<
 
 run-debug: ${top}/${program_name}.iso
-	${QEMU} ${QEMU_OPT} ${QEMU_DBG_OPT} -cdrom $<
+	${QEMU} ${QEMU_OPT} ${QEMU_GRAPHIC_OPT} ${QEMU_DBG_OPT} -cdrom $<
 
 run-debug-nox: ${top}/${program_name}.iso
-	${QEMU} ${QEMU_OPT} -nographic ${QEMU_DBG_OPT} -cdrom $<
+	${QEMU} ${QEMU_OPT} ${QEMU_NOX_OPT} ${QEMU_DBG_OPT} -cdrom $<
 
 mk-hal-libs: 
 	for dir in ${subdirs} ; do \
