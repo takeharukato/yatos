@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <limits.h>
 
+#include <kern/compiler.h>
 #include <kern/kprintf.h>
 #include <kern/string.h>
 
@@ -320,6 +321,7 @@ doprintf(int (*__putc)(char _c, void *_argp), void *argp, const char *fmt, va_li
 		case 'X':
 
 			flags |= LARGE;
+			__FALLTHROUGH;
 		case 'x':
 
 			base = 16;
