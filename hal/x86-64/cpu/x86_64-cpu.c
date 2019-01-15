@@ -66,7 +66,7 @@ x86_64_init_kernel_proc(void *kpgtbl) {
 	p->vm.pgtbl = kpgtbl;
 	p->pid = THR_IDLE_TID;
 
-	p->entry = (int (*)(void *)) x86_64_prepare;
+	p->entry = (int (*)(void *)) (void *) x86_64_prepare;
 
 	spinlock_init(&p->lock);
 	queue_init(&p->threads);
