@@ -3,21 +3,17 @@
 /*  Yet Another Teachable Operating System                            */
 /*  Copyright 2016 Takeharu KATO                                      */
 /*                                                                    */
-/*  ELF loader relevant definitions                                   */
+/*  x86-64 ELF definitions                                            */
 /*                                                                    */
 /**********************************************************************/
-#if !defined(_KERN_ELFLDR_H)
-#define  _KERN_ELFLDR_H 
+#if !defined(_HAL_MACHINE_ELF_H)
+#define  _HAL_MACHINE_ELF_H 
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
-#include <kern/config.h>
-#include <kern/kernel.h>
-#include <kern/param.h>
-#include <kern/assert.h>
-#include <kern/kern_types.h>
-#include <kern/elf.h>
-
-int setup_process_image_from_ELF_on_memory(proc *_proc, void *_m);
-#endif  /*  _KERN_ELFLDR_H   */
+#if !defined(__ELF_WORD_SIZE)
+#define __ELF_WORD_SIZE     64
+#endif  /*   __ELF_WORD_SIZE  */
+#endif  /*  _HAL_MACHINE_ELF_H   */

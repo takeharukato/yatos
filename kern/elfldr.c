@@ -74,8 +74,8 @@ ph_prot2vma_prot(Elf64_Word p_flags) {
  */
 int
 _proc_load_ELF_from_memory(proc* p, void *kvaddr){
-	ELF_Ehdr          *hdr;
-	ELF_Phdr         *phdr;
+	Elf_Ehdr          *hdr;
+	Elf_Phdr         *phdr;
 	int           i, c, rc;
 	uintptr_t vaddr, paddr;
 	void           *uvaddr;
