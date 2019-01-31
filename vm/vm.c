@@ -543,25 +543,21 @@ error_out:
 	return rc;
 }
 
-/** 仮想アドレス空間の所定の仮想アドレスに新規ページを割り当てる
+/** アドレス空間の所定の仮想アドレスに新規ページを割り当てる
     @param[in] as    操作対象の仮想アドレス空間
     @param[in] vaddr マップする仮想アドレス
-    @param[in] prot  マップ時のVMA保護属性
     @retval       0  正常にマップした
     @retval -ENOMEM  ページテーブルのメモリ獲得に失敗した
                      新規ページの獲得に失敗した
  */
 int
-vm_map_newpage(vm *as, void *vaddr, vma_prot prot){
+vm_map_newpage(vm *as, void *vaddr){
 	int           rc;
 	void   *new_page;
 	vma         *res;
 
 	kassert( as != NULL );
 	kassert( mutex_locked_by_self(&as->asmtx) );
-
-	if ( prot == VMA_PROT_NONE )
-		return 0;
 
 	if ( ( (uintptr_t)vaddr ) >= USER_VADDR_LIMIT )
 		return -EFAULT;

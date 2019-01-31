@@ -430,7 +430,7 @@ page_fault_exception(trap_context *ctx) {
 		rc = vm_find_vma( &current->p->vm, fault_addr, &vmap);
 		if ( rc == 0 ) {
 
-			rc = vm_map_newpage(&current->p->vm, fault_addr, vmap->prot);
+			rc = vm_map_newpage(&current->p->vm, fault_addr);
 			if ( rc != 0 )
 				goto exit_out;
 		}

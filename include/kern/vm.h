@@ -57,7 +57,7 @@ void vm_init(vm *_as, struct _proc *_p);
 void vm_destroy(vm *_as);
 int vm_find_vma(vm *_as, void *_vaddr, vma **_res);
 int vm_map_addr(struct _vm *_as, void *_vaddr, void *_kpaddr);
-int vm_map_newpage(struct _vm *_as, void *_vaddr, vma_prot _prot);
+int vm_map_newpage(struct _vm *_as, void *_vaddr);
 int vm_unmap_addr(struct _vm *_as, void *_vaddr);
 int vm_create_vma(vm *_as, struct _vma **_vmapp, void *_start, 
     size_t _size, vma_prot _prot, vma_flags _vflags);
