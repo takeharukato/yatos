@@ -45,7 +45,6 @@
     @return 指定のアラインメントでアドレス値をラウンドアップした値
  */
 #define ROUNDUP_ALIGN(addr, size)		\
-	( TRUNCATE_ALIGN((((size_t)(addr)) + ((size_t)(size))), (size) ) )
-
+	( TRUNCATE_ALIGN(( (addr) + CALC_ALIGN_MASK(size) ), size) )
 
 #endif  /*  _KERN_ALIGN_H   */
