@@ -66,9 +66,9 @@ init_idbmap_common(id_bitmap *idmap, obj_id reserved_ids){
 /** IDビットマップの大きさを変更する
     @param[in] idmap      IDビットマップ
     @param[in] new_ids    新しいサイズ(単位: ID数)
-    @retval 0        サイズを更新できた
-    @retval EBUSY    伸縮時の削除対象領域に使用中のIDがある
-    @retval EINVAL   新しいサイズに0を指定した. または, 予約ID数を下回るサイズを指定した
+    @retval  0        サイズを更新できた
+    @retval -EBUSY    伸縮時の削除対象領域に使用中のIDがある
+    @retval -EINVAL   新しいサイズに0を指定した. または, 予約ID数を下回るサイズを指定した
  */
 static int
 resize_bitmap(id_bitmap *idmap, obj_id new_ids){
@@ -79,10 +79,10 @@ resize_bitmap(id_bitmap *idmap, obj_id new_ids){
 	intrflags    iflags;
 
 	if ( new_ids == 0 )
-		return EINVAL;
+		return -EINVAL;
 
 	if ( new_ids <= idmap->reserved_ids )
-		return EINVAL;
+		return -EINVAL;
 
 	spinlock_lock_disable_intr(&idmap->lock, &iflags);
 
@@ -93,7 +93,7 @@ resize_bitmap(id_bitmap *idmap, obj_id new_ids){
 	new_map = kmalloc( sizeof(uint64_t) * new_idx, KMALLOC_NORMAL);
 	if ( new_map == NULL ) {
 
-		rc = ENOMEM;
+		rc = -ENOMEM;
 		goto unlock_out;
 	}
 	memset(&new_map[0], 0, sizeof(uint64_t) * new_idx);
@@ -113,7 +113,7 @@ resize_bitmap(id_bitmap *idmap, obj_id new_ids){
 
 			if ( idmap->map[i] != 0 ) {  /*  使用中のIDがある  */
 
-				rc = EBUSY;
+				rc = -EBUSY;
 				goto free_newmap_out;
 			}
 		}
@@ -150,7 +150,7 @@ unlock_out:
     @param[in]     idflags 取得するID種別
     @param[in,out] idp   取得したIDの返却先
     @retval  0      ID取得に成功
-    @retval  ENOENT ID取得に失敗
+    @retval -ENOENT ID取得に失敗
  */
 static int
 find_free_id(id_bitmap *idmap, int idflags, obj_id *idp) {
@@ -176,7 +176,7 @@ find_free_id(id_bitmap *idmap, int idflags, obj_id *idp) {
 	}
 
 	if ( max_id > idmap->nr_ids )
-		return ENOENT;  /*  十分な大きさのマップが割り当てられていない  */
+		return -ENOENT;  /*  十分な大きさのマップが割り当てられていない  */
 
 	/*
 	 * 空きIDを探す
@@ -201,7 +201,7 @@ find_free_id(id_bitmap *idmap, int idflags, obj_id *idp) {
 		}
 	}
 	
-	rc = ENOENT;  /*  空きIDがない  */
+	rc = -ENOENT;  /*  空きIDがない  */
 
 unlock_out:
 	spinlock_unlock_restore_intr(&idmap->lock, &iflags);
@@ -211,8 +211,8 @@ unlock_out:
 
 /** IDビットマップのビットマップを解放する(実処理関数)
     @param[in] idmap        IDビットマップ
-    @retval 0     正常終了
-    @retval EBUSY 使用中のIDがある
+    @retval  0     正常終了
+    @retval -EBUSY 使用中のIDがある
     @note   静的に確保したビットマップ用
  */
 static int
@@ -230,7 +230,7 @@ free_map_in_idmap(id_bitmap *idmap) {
 		if ( idmap->map[i] != 0 ) { /*   使用中のIDがある  */
 			
 			reserve_invalid_ids(idmap); /*  不正IDを予約済みに戻す  */
-			rc = EBUSY;
+			rc = -EBUSY;
 			goto unlock_out;
 		}
 	}
@@ -256,8 +256,8 @@ unlock_out:
 
 /** ID bitmapへの参照を得る
     @param[in] idmap    IDビットマップ
-    @retval 0      正常終了
-    @retval ENOENT 削除中
+    @retval  0      正常終了
+    @retval -ENOENT 削除中
  */
 static int
 get_idbmap_ref(id_bitmap *idmap) {
@@ -267,7 +267,7 @@ get_idbmap_ref(id_bitmap *idmap) {
 	spinlock_lock_disable_intr(&idmap->lock, &iflags);
 	if ( idmap->delete_me ) {
 		
-		rc = ENOENT;
+		rc = -ENOENT;
 		goto unlock_out;
 	}
 
@@ -318,10 +318,10 @@ put_idbmap_ref(id_bitmap *idmap) {
     @param[in] idmap   IDビットマップ
     @param[in] id      取得するID
     @param[in] idflags 取得するID種別
-    @retval 0        IDを取得できた。
-    @retval ENOENT   削除中のIDビットマップを獲得しようとした
-    @retval EBUSY    IDがすでに使用されている
-    @retval EINVAL   システムIDを取得しようとしたが, 指定されたIDがユーザIDの範囲にある
+    @retval  0        IDを取得できた。
+    @retval -ENOENT   削除中のIDビットマップを獲得しようとした
+    @retval -EBUSY    IDがすでに使用されている
+    @retval -EINVAL   システムIDを取得しようとしたが, 指定されたIDがユーザIDの範囲にある
                      不正なIDを指定した
  */
 int
@@ -332,11 +332,11 @@ idbmap_get_specified_id(id_bitmap *idmap, obj_id id, int idflags){
 	intrflags  iflags;
 
 	if ( ( idflags & ID_BITMAP_SYSTEM ) && ( id >= idmap->reserved_ids ) )
-		return EINVAL;
+		return -EINVAL;
 
 	rc = get_idbmap_ref(idmap);  /*  ID獲得に伴い参照カウンタを上げる  */
 	if ( rc != 0 )
-		return ENOENT;
+		return -ENOENT;
 
 	/*
 	 * 指定されたIDの配列インデクス, ビット位置を算出
@@ -358,7 +358,7 @@ idbmap_get_specified_id(id_bitmap *idmap, obj_id id, int idflags){
 	spinlock_lock_disable_intr(&idmap->lock, &iflags);
 	if ( idmap->map[idx] & (1ULL << pos) ) {  /*  IDが既に使用されている  */
 
-		rc = EBUSY;
+		rc = -EBUSY;
 		goto unlock_out;
 	}
 
@@ -381,8 +381,8 @@ error_out:
     @param[in]     idflags 取得するID種別
     @param[in,out] idp   取得したIDの返却先
     @retval  0      ID取得に成功
-    @retval  ENOENT ID取得に失敗したか, または, 削除中のIDビットマップを獲得しようとした
-    @retval  ENOMEM メモリ不足
+    @retval -ENOENT ID取得に失敗したか, または, 削除中のIDビットマップを獲得しようとした
+    @retval -ENOMEM メモリ不足
  */
 int
 idbmap_get_id(id_bitmap *idmap, int idflags, obj_id *idp) {
@@ -392,12 +392,12 @@ idbmap_get_id(id_bitmap *idmap, int idflags, obj_id *idp) {
 
 	rc = get_idbmap_ref(idmap);  /*  ID獲得に伴い参照カウンタを上げる  */
 	if ( rc != 0 )
-		return ENOENT;
+		return -ENOENT;
 
 	do{
 		/*  空きIDを検索する  */
 		find_id_rc = find_free_id(idmap, idflags, &newid);
-		if ( find_id_rc == ENOENT ) {
+		if ( find_id_rc == -ENOENT ) {
 
 			/* ビットマップを拡張して空きIDを得る  */
 			rc = resize_bitmap(idmap,
@@ -450,10 +450,10 @@ idbmap_put_id(id_bitmap *idmap, obj_id id) {
 /** IDビットマップのサイズを更新する
     @param[in] idmap        IDビットマップ
     @param[in] new_ids      更新後の登録可能ID数
-    @retval 0       正常終了
-    @retval ENOENT 削除中のIDビットマップを獲得しようとした
-    @retval ENOMEM  メモリ不足
-    @retval EINVAL  登録可能IDが予約IDの範囲より小さい
+    @retval  0       正常終了
+    @retval -ENOENT 削除中のIDビットマップを獲得しようとした
+    @retval -ENOMEM  メモリ不足
+    @retval -EINVAL  登録可能IDが予約IDの範囲より小さい
  */
 int
 idbmap_resize(id_bitmap *idmap, obj_id new_ids) {
@@ -461,7 +461,7 @@ idbmap_resize(id_bitmap *idmap, obj_id new_ids) {
 
 	rc = get_idbmap_ref(idmap);  /*  参照カウンタを上げる  */
 	if ( rc != 0 )
-		return ENOENT;
+		return -ENOENT;
 
 	rc = resize_bitmap(idmap, new_ids);
 
@@ -483,10 +483,10 @@ idbmap_init(id_bitmap *idmap, obj_id reserved_ids) {
 
 /** IDビットマップのビットマップを解放する
     @param[in] idmap        IDビットマップ
-    @retval 0     正常終了
-    @retval EINVAL 動的確保したIDビットマップをfreeしようとした
-    @retval ENOENT 削除中のIDビットマップを獲得しようとした
-    @retval EBUSY 使用中のIDがある
+    @retval  0     正常終了
+    @retval -EINVAL 動的確保したIDビットマップをfreeしようとした
+    @retval -ENOENT 削除中のIDビットマップを獲得しようとした
+    @retval -EBUSY 使用中のIDがある
     @note   静的に確保したビットマップ用
  */
 int
@@ -499,7 +499,7 @@ idbmap_free(id_bitmap *idmap) {
 	 *  の対象外となるビットマップを解放しようとしたことになる
 	 */
 	if ( rc != 0 )
-		return EINVAL;  
+		return -EINVAL;  
 
 	rc = free_map_in_idmap(idmap);   /* IDマップを解放 */
 	if ( rc != 0 ) 
@@ -533,8 +533,8 @@ idbmap_destroy(id_bitmap *idmap) {
 /** IDビットマップを生成する
     @param[in] reserved_ids 予約IDの範囲
     @param[out] idmapp      IDビットマップを指し示すポインタのアドレス
-    @retval 0      正常終了
-    @retval ENOMEM メモリ不足
+    @retval  0      正常終了
+    @retval -ENOMEM メモリ不足
  */
 int
 idbmap_create(obj_id reserved_ids, id_bitmap **idmapp){
@@ -544,7 +544,7 @@ idbmap_create(obj_id reserved_ids, id_bitmap **idmapp){
 	idmap = kmalloc( sizeof(id_bitmap), KMALLOC_NORMAL);
 	if ( idmap == NULL ) {
 
-		rc = ENOMEM;
+		rc = -ENOMEM;
 		goto error_out;
 	}
 

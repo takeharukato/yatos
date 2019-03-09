@@ -39,33 +39,33 @@ do_idmap_test(char *name, id_bitmap *idmap){
 
 	kprintf(KERN_INF, "%s-1 get system id\n", name);
 	rc = idbmap_get_id(idmap, ID_BITMAP_SYSTEM, &newid);
-	kprintf(KERN_INF, "%s-1 get system id = %llu rc=%d\n", name, newid, rc);
+	kprintf(KERN_INF, "%s-1 get system id = %u rc=%d\n", name, newid, rc);
 	kassert( rc == 0 );
 	kassert( newid > 0 );
 
 	kprintf(KERN_INF, "%s-2 put system id\n", name);
 	idbmap_put_id(idmap, newid);
 
-	kprintf(KERN_INF, "%s-3 specific system id (%llu)\n", name, newid);
+	kprintf(KERN_INF, "%s-3 specific system id (%u)\n", name, newid);
 	rc = idbmap_get_specified_id(idmap, newid, ID_BITMAP_SYSTEM);
-	kprintf(KERN_INF, "%s-3 get system id = %llu rc=%d\n", name, newid, rc);
+	kprintf(KERN_INF, "%s-3 get system id = %u rc=%d\n", name, newid, rc);
 	kassert( rc == 0 );
 
 	kprintf(KERN_INF, "%s-4 get busy bitmap free test\n", name);
 	rc = idbmap_free(idmap);
-	kassert( rc == EBUSY );
+	kassert( rc == -EBUSY );
 
 	kprintf(KERN_INF, "%s-5 get busy system id\n", name);
 	rc = idbmap_get_specified_id(idmap, newid, ID_BITMAP_SYSTEM);
-	kassert( rc == EBUSY );
+	kassert( rc == -EBUSY );
 
 	kprintf(KERN_INF, "%s-6 get invalid range ( too big ) system id\n", name);
 	rc = idbmap_get_specified_id(idmap, idmap->nr_ids, ID_BITMAP_SYSTEM);
-	kassert( rc == EINVAL );
+	kassert( rc == -EINVAL );
 
 	kprintf(KERN_INF, "%s-7 get invalid range ( user id ) system id\n", name);
 	rc = idbmap_get_specified_id(idmap, idmap->reserved_ids, ID_BITMAP_SYSTEM);
-	kassert( rc == EINVAL );
+	kassert( rc == -EINVAL );
 
 	kprintf(KERN_INF, "%s-8 put system id\n", name);
 	idbmap_put_id(idmap, newid);
@@ -77,7 +77,7 @@ do_idmap_test(char *name, id_bitmap *idmap){
 
 		rc = idbmap_get_specified_id(idmap, id, ID_BITMAP_SYSTEM);
 		if ( rc != 0 )
-			kprintf(KERN_INF, "%s-9 get system id = %llu rc=%d\n", 
+			kprintf(KERN_INF, "%s-9 get system id = %u rc=%d\n", 
 			    name, id, rc);
 		kassert( rc == 0 );
 	}
@@ -89,7 +89,7 @@ do_idmap_test(char *name, id_bitmap *idmap){
 
 		idbmap_put_id(idmap, id);
 		if ( rc != 0 )
-			kprintf(KERN_INF, "%s-10 free system id = %llu rc=%d\n", 
+			kprintf(KERN_INF, "%s-10 free system id = %u rc=%d\n", 
 			    name, id, rc);
 		kassert( rc == 0 );
 	}
@@ -101,7 +101,7 @@ do_idmap_test(char *name, id_bitmap *idmap){
 
 		rc = idbmap_get_specified_id(idmap, id, ID_BITMAP_USER);
 		if ( rc != 0 )
-			kprintf(KERN_INF, "%s-11 get user id = %llu rc=%d\n", 
+			kprintf(KERN_INF, "%s-11 get user id = %u rc=%d\n", 
 			    name, id, rc);
 		kassert( rc == 0 );
 	}
@@ -113,7 +113,7 @@ do_idmap_test(char *name, id_bitmap *idmap){
 
 		idbmap_put_id(idmap, id);
 		if ( rc != 0 )
-			kprintf(KERN_INF, "%s-12 free user id = %llu rc=%d\n", 
+			kprintf(KERN_INF, "%s-12 free user id = %u rc=%d\n", 
 			    name, id, rc);
 		kassert( rc == 0 );
 	}
@@ -137,18 +137,18 @@ do_idmap_test(char *name, id_bitmap *idmap){
 
 		idbmap_put_id(idmap, id);
 		if ( rc != 0 )
-			kprintf(KERN_INF, "%s-14 free user id = %llu rc=%d\n", 
+			kprintf(KERN_INF, "%s-14 free user id = %u rc=%d\n", 
 			    name, id, rc);
 		kassert( rc == 0 );
 	}
 
 	rc = idbmap_resize(idmap, 0);
 	kprintf(KERN_INF, "%s-15 shrink map error case zero\n", name);
-	kassert( rc == EINVAL );
+	kassert( rc == -EINVAL );
 
 	rc = idbmap_resize(idmap, idmap->reserved_ids);
 	kprintf(KERN_INF, "%s-15 shrink map no user id error case \n", name);
-	kassert( rc == EINVAL );
+	kassert( rc == -EINVAL );
 
 	newid = idmap->reserved_ids + 1;
 	rc = idbmap_get_specified_id(idmap, newid, ID_BITMAP_USER);
@@ -156,7 +156,7 @@ do_idmap_test(char *name, id_bitmap *idmap){
 
 	rc = idbmap_resize(idmap, newid);
 	kprintf(KERN_INF, "%s-16 shrink map busy user id error case \n", name);
-	kassert( rc == EBUSY );
+	kassert( rc == -EBUSY );
 
 	idbmap_put_id(idmap, newid);
 
@@ -212,19 +212,19 @@ idmap_test3(void){
 
 	kprintf(KERN_INF, "Test3-pre3 idbmap_free invalid id bitmap type\n");
 	rc = idbmap_free(idmap);
-	kassert( rc == EINVAL );
+	kassert( rc == -EINVAL );
 
 	kprintf(KERN_INF, "Test3-pre4 idbmap_get_specified_id in deleted idbmap \n");
 	rc = idbmap_get_specified_id(idmap, newid + 1, ID_BITMAP_SYSTEM);
-	kassert( rc == ENOENT );
+	kassert( rc == -ENOENT );
 
 	kprintf(KERN_INF, "Test3-pre5 idbmap_get_id in deleted idbmap \n");
 	rc = idbmap_get_id(idmap, ID_BITMAP_SYSTEM, &failedid);
-	kassert( rc == ENOENT );
+	kassert( rc == -ENOENT );
 
 	kprintf(KERN_INF, "Test3-pre6 idbmap_resize deleted idbmap \n");
 	rc = idbmap_resize(idmap, idmap->reserved_ids + 1);
-	kassert( rc == ENOENT );
+	kassert( rc == -ENOENT );
 
 	kprintf(KERN_INF, "Test3-pre7 idbmap_put_id in deleted idbmap \n");
 	idbmap_put_id(idmap, newid);
