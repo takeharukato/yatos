@@ -17,6 +17,7 @@
 #include <kern/kernel.h>
 #include <kern/param.h>
 
+typedef int64_t            ref_cnt;  /**< 参照カウンタ                                */
 typedef uint64_t            obj_id;  /*< 汎用ID                                       */
 typedef uint32_t thread_info_magic;  /*< スタックマジック                             */
 typedef uint32_t thread_info_flags;  /*< 例外出口関連フラグ                           */
