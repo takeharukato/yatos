@@ -118,7 +118,6 @@ typedef struct _thread_dic{
 	.booking = RB_INITIALIZER(root),        \
 	}
 
-void thr_idpool_init(void);
 /*   IF関数  */
 bool all_thread_locked_by_self(void);
 void acquire_all_thread_lock(intrflags *flags);

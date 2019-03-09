@@ -33,6 +33,7 @@ _setup_test_progs(void) {
 	
 	/*  テストプログラム呼出はこれより下に記載 */
 
+	//idbmap_test();
 	//thread_test();
 	//timer_test();
 	//lpc1_test();
@@ -47,7 +48,7 @@ void
 kcom_start_kernel(void) {
 
 	kmalloc_cache_init();
-	thr_idpool_init();
+
 	sched_init_subsys();
 	idle_init_subsys();
 	irq_init_subsys();

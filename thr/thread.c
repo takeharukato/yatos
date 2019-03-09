@@ -33,17 +33,25 @@
 
 #include <thr/thr-internal.h>
 
-/*< ツリー/キューとスレッドのロックを同時に取るときは, ツリー/キューのロックを取ってから
+/** ツリー/キューとスレッドのロックを同時に取るときは, ツリー/キューのロックを取ってから
  *  スレッドのロックを取る  
  */
-/* 全スレッド  */
+
+/** 全スレッド
+ */
 static thread_dic thr_created_tree = __THREAD_DIC_INITIALIZER(&thr_created_tree.booking);
-/* 未使用スレッド  */
+
+/** 未使用スレッド  
+*/
 static thread_queue thr_free_queue = __TQ_INITIALIZER( &thr_free_queue.que ); 
-/* 停止スレッド  */
+
+/** 停止スレッド 
+ */
 static thread_queue thr_dormant_queue = __TQ_INITIALIZER( &thr_dormant_queue.que );
 
-static id_bitmap thr_idpool = __ID_BITMAP_INITIALIZER;   /* スレッドIDプール  */
+/** スレッドIDプール 
+ */
+static id_bitmap thr_idpool = __ID_BITMAP_INITIALIZER(ID_BITMAP_DEFAULT_RESV_IDS);
 
 static int thread_id_cmp(struct _thread *_a, struct _thread *_b);
 
@@ -325,13 +333,12 @@ thr_create_kthread(thread *thr, int prio, thread_flags thr_flags, tid newid,
 
 	/*  カーネルスレッド用にIDを取得  */
 	if ( newid == THR_INVALID_TID )
-		rc = get_id(&thr_idpool, &thr->tid, ID_FLAG_SYSTEM);
-	else if ( is_id_busy(&thr_idpool, newid) ) {
-
+		rc = idbmap_get_id(&thr_idpool, ID_BITMAP_SYSTEM, &thr->tid);
+	else {
+	
+		rc = idbmap_get_specified_id(&thr_idpool, newid, ID_BITMAP_SYSTEM);
 		thr->tid = newid;
-		rc = 0;
-	} else
-		rc = get_specified_id(&thr_idpool, newid, ID_FLAG_SYSTEM);
+	}
 	kassert( rc == 0 );
 
 	thr->thr_flags = thr_flags;   /*  属性情報を設定  */
@@ -394,7 +401,7 @@ thr_create_uthread(thread *thr, int prio, thread_flags thr_flags, proc *p,
 	create_thread_common(thr, prio);
 
 	/*  ユーザスレッド用にIDを取得  */
-	rc = get_id(&thr_idpool, &thr->tid, ID_FLAG_USER);
+	rc = idbmap_get_id(&thr_idpool, ID_BITMAP_USER, &thr->tid);
 	kassert( rc == 0 );
 
 	thr->thr_flags = thr_flags;   /*  属性情報を設定  */
@@ -697,7 +704,7 @@ thr_destroy(thread *thr) {
 
 	kassert( thr->tid != THR_IDLE_TID );
 
-	put_id( &thr_idpool, thr->tid );  /* IDを返却  */
+	idbmap_put_id( &thr_idpool, thr->tid );  /* IDを返却  */
 	free_buddy_pages( thr->ksp );  /*  スタックを解放  */
 
 	spinlock_unlock( &thr->lock );
@@ -822,13 +829,4 @@ thr_yield(void) {
 
 unmask_out:
 	hal_cpu_restore_interrupt(&flags);
-}
-
-/** スレッドサブシステムを初期化する
-    @note スケジューラ初期化処理から呼ばれる
- */
-void
-thr_idpool_init(void) {
-	
-	init_id_bitmap(&thr_idpool);
 }
