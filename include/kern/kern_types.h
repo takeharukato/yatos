@@ -50,6 +50,8 @@ typedef int             page_order;  /**< ページオーダ                    
 typedef uint64_t   page_order_mask;  /**< ページオーダマスク                          */
 typedef uint32_t         tim_tmout;  /**< タイマハンドラのタイムアウト時間            */
 typedef int32_t          lpc_tmout;  /**< LPCのタイムアウト値                         */
+typedef uint32_t    lpc_sync_flags;  /**< メッセージ送受信制御フラグ                  */
+typedef uint64_t       lpc_msg_loc;  /**< メッセージ本文開始位置シンボル              */
 typedef tid               endpoint;  /**< LPCの端点(pid/tid)                          */
 typedef uint64_t             ticks;  /**< 電源投入時からのティック発生回数            */
 typedef uint64_t         delay_cnt;  /**< ミリ秒以下のループ待ち指定値                */
