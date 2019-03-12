@@ -7,7 +7,7 @@ top=..
 include ${top}/Makefile.inc
 CFLAGS += -I${top}/include
 objects=tst-thread.o tst-proc1.o tst-memmove.o tst-timer.o tst-lpc1.o tst-lpc2.o tst-kserv.o \
-	tst-wait-kthread.o tst-rr-thread.o tst-mutex.o tst-idmap.o
+	tst-wait-kthread.o tst-rr-thread.o tst-mutex.o tst-idmap.o tst-queue.o
 
 lib=libtests.a
 

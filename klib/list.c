@@ -24,12 +24,12 @@ void
 list_del(struct _list *node) {
 
 	/*
-	 * unlink the node 
+	 * リストノードをキューから外す
 	 */
 	node->next->prev = node->prev;
 	node->prev->next = node->next;
 
-	list_init(node);  	/* Initialize a node  */
+	list_init(node);  	/*  取り外したノードを再初期化する  */
 }
 
 

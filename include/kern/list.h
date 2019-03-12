@@ -17,21 +17,20 @@
 #include <kern/param.h>
 #include <kern/kern_types.h>
 
-/** obtain struct pointer from embedded list member address.
-    @param[in] p address of list structure
-    @param[in] t type of struct
-    @param[in] m list member name in the structure
+/** 構造体に埋め込まれたリスト構造体のアドレスから構造体へのポインタを得る
+    @param[in] p リスト構造体のアドレス
+    @param[in] t リスト構造体を埋め込んでいる構造体の型
+    @param[in] m リスト構造体を埋め込んでいる構造体中のリストメンバの名前
  */
 #define CONTAINER_OF(p, t, m)			\
 	( (t *)( ( (void *)(p) ) - ( (void *)( &( ((t *)(0))->m ) ) ) ) )
 
-/** list entry
+/** リスト構造体
  */
 typedef struct _list{
-	struct _list *prev;       /*<  Previous pointer  */
-	struct _list *next;       /*<  Next pointer  */
+	struct _list *prev;       /**<  前の要素へのポインタ  */
+	struct _list *next;       /**<  後の要素へのポインタ  */
 }list;
-
 
 void list_del(struct _list *);
 void list_init(struct _list *);

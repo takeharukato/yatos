@@ -37,6 +37,6 @@ system_threads_init(void) {
 	proc_service_init();         /* プロセスサービスコール        */
 	vm_service_init();           /* VMサービスコール              */
 
-	_setup_test_progs();
+	_setup_test_progs();         /* テストプログラムの呼出し      */
 	ti_enable_dispatch();
 }

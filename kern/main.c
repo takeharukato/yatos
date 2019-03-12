@@ -33,6 +33,7 @@ _setup_test_progs(void) {
 	
 	/*  テストプログラム呼出はこれより下に記載 */
 
+	//queue_test();
 	//idbmap_test();
 	//thread_test();
 	//timer_test();
