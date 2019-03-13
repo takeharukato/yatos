@@ -62,4 +62,5 @@ typedef int            event_errno;  /**< 非同期イベントエラー番号  
 typedef int             event_code;  /**< 非同期イベントコード番号                    */
 typedef int             event_trap;  /**< 非同期イベントトラップ番号                  */
 typedef void *          event_data;  /**< 非同期イベント付帯情報                      */
+typedef uint64_t   event_data_size;  /**< 非同期イベント付帯情報長(単位:バイト)       */
 #endif  /*  _KERN_KERN_TYPES_H   */

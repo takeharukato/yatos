@@ -16,11 +16,9 @@
 #include <kern/config.h>
 #include <kern/kernel.h>
 #include <kern/param.h>
-#include <kern/assert.h>
 #include <kern/kern_types.h>
 #include <kern/spinlock.h>
 #include <kern/queue.h>
-#include <kern/async-event.h>
 
 #include <hal/traps.h>
 #include <hal/arch-cpu.h>
@@ -53,6 +51,8 @@
 #define EV_SIG_CHLD    (20)
 #define EV_SIG_USR1    (30)
 #define EV_SIG_USR2    (31)
+#define EV_SYS_NOTIFY  (63)
+#define EV_SYS_NR      (64)
 
 /** CPUによる例外送出イベント
  */
@@ -91,17 +91,18 @@
 /** イベント情報
  */
 typedef struct _evinfo{
-	event_flags   flags;  /*< イベント処理用のフラグ        */
-	event_id         no;  /*< イベント番号                  */
-	event_errno     err;  /*< イベントエラー番号            */
-	event_code     code;  /*< イベントコード                */
-	event_trap     trap;  /*< トラップコード                */
-	tid       sender_id;  /*< 配送元スレッドID              */
-	exit_code ev_status;  /*< 終了ステータス                */
-	ticks     *ev_utime;  /*< ユーザ時間                    */
-	ticks     *ev_stime;  /*< システム時間                  */
-	void       *ev_addr;  /*< 不正メモリアクセス先アドレス  */
-	event_data     data;  /*< 付帯情報                      */
+	event_flags        flags;  /*< イベント処理用のフラグ        */
+	event_id              no;  /*< イベント番号                  */
+	event_errno          err;  /*< イベントエラー番号            */
+	event_code          code;  /*< イベントコード                */
+	event_trap          trap;  /*< トラップコード                */
+	tid            sender_id;  /*< 配送元スレッドID              */
+	exit_code      ev_status;  /*< 終了ステータス                */
+	ticks          *ev_utime;  /*< ユーザ時間                    */
+	ticks          *ev_stime;  /*< システム時間                  */
+	void            *ev_addr;  /*< 不正メモリアクセス先アドレス  */
+	event_data          data;  /*< 付帯情報                      */
+	event_data_size data_siz;  /*< 付帯情報の長さ(単位:バイト)   */
 }evinfo;
 
 /** イベントマスク
