@@ -115,11 +115,14 @@ queue_test2(void) {
 	queue_for_each_safe(lp, &qh.que, tmp) {
 
 		d = CONTAINER_OF(lp, struct _tst_queue_data, ent);
+		kassert( !list_not_linked(&d->ent) );
 		list_del(&d->ent);
+		kassert( list_not_linked(&d->ent) );
 		kfree(d);
 		++cnt;
 	}
-	kprintf(KERN_INF, "Queue Test2-3: remove queue entries =%d\n", cnt);
+	kprintf(KERN_INF, "Queue Test2-3: list_not_linked test OK\n");
+	kprintf(KERN_INF, "Queue Test2-4: remove queue entries =%d\n", cnt);
 	kassert( cnt == TEST_DATA );
 
 	/*
@@ -135,14 +138,14 @@ queue_test2(void) {
 	key.no = TEST_DATA / 2;
 	queue_find_element(&qh.que, struct _tst_queue_data, ent, &key, tst_queue_cmp, &found);
 	kassert( found != NULL );
-	kprintf(KERN_INF, "Queue Test2-4: find data no=%d\n", found->no);
+	kprintf(KERN_INF, "Queue Test2-5: find data no=%d\n", found->no);
 
 	memset(&key, 0, sizeof(tst_queue_data));
 	key.no = TEST_DATA / 4;
 	queue_reverse_find_element(&qh.que, struct _tst_queue_data, 
 	    ent, &key, tst_queue_cmp, &found);
 	kassert( found != NULL );
-	kprintf(KERN_INF, "Queue Test2-5: reverse find data no=%d\n", found->no);
+	kprintf(KERN_INF, "Queue Test2-6: reverse find data no=%d\n", found->no);
 	/*
 	 * キューの消去
 	 */
@@ -154,7 +157,7 @@ queue_test2(void) {
 		kfree(d);
 		++cnt;
 	}
-	kprintf(KERN_INF, "Queue Test2-6: remove queue entries with reverse order"
+	kprintf(KERN_INF, "Queue Test2-7: remove queue entries with reverse order"
 	    " count=%d\n", cnt);
 	kassert( cnt == TEST_DATA );
 }
