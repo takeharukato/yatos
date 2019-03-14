@@ -13,10 +13,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include <kern/config.h>
-#include <kern/kernel.h>
-#include <kern/param.h>
-
+typedef int64_t   singned_cnt_type;  /**< 符号付きカウンタ                            */
 typedef int64_t            ref_cnt;  /**< 参照カウンタ                                */
 typedef uint64_t            obj_id;  /**< 汎用ID                                      */
 typedef uint32_t thread_info_magic;  /**< スタックマジック                            */

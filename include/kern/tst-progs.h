@@ -32,4 +32,6 @@ extern void thread_round_robin_test(void);
 extern void mutex_test(void);
 extern void idbmap_test(void);
 extern void queue_test(void);
+extern void refcnt_test(void);
+
 #endif  /*  _KERN_TST_PROGS_H   */
