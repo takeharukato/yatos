@@ -13,15 +13,14 @@
 
 #include <kern/config.h>
 #include <kern/kernel.h>
-#include <kern/spinlock.h>
 #include <kern/param.h>
+#include <kern/spinlock.h>
 #include <kern/assert.h>
 #include <kern/string.h>
-#include <kern/kprintf.h>
 #include <kern/id-bitmap.h>
 #include <kern/errno.h>
-#include <kern/kresv-ids.h>
 #include <kern/page.h>
+
 
 /** IDビットマップ中の不正IDを予約済みにする
     @param[in] idmap      IDビットマップ
@@ -54,9 +53,7 @@ init_idbmap_common(id_bitmap *idmap, obj_id reserved_ids){
 	 * 各メンバを初期化する
 	 */
 	spinlock_init( &idmap->lock );
-	spinlock_init( &idmap->ref_lock );
-	idmap->delete_me = false;
-	idmap->ref_count = 0;
+	refcnt_init( &idmap->ref_count );
 	idmap->reserved_ids = reserved_ids;
 	idmap->nr_ids = 0;
 	idmap->max_array_idx = 0;
@@ -265,15 +262,13 @@ get_idbmap_ref(id_bitmap *idmap) {
 	intrflags  iflags;
 
 	spinlock_lock_disable_intr(&idmap->lock, &iflags);
-	if ( idmap->delete_me ) {
+
+	rc = refcnt_get( &idmap->ref_count, NULL );
+	if ( rc != 0 ) {
 		
 		rc = -ENOENT;
 		goto unlock_out;
 	}
-
-	spinlock_lock(&idmap->ref_lock);
-	++idmap->ref_count;
-	spinlock_unlock(&idmap->ref_lock);
 
 	rc = 0;
 
@@ -289,18 +284,15 @@ unlock_out:
  */
 static void
 put_idbmap_ref(id_bitmap *idmap) {
-	int            rc;
-	ref_cnt    oldcnt;
-	intrflags  iflags;
-
-	spinlock_lock_disable_intr(&idmap->ref_lock, &iflags);
-	oldcnt = idmap->ref_count;
-	--idmap->ref_count;
-	spinlock_unlock_restore_intr(&idmap->ref_lock, &iflags);
+	int               rc;
+	refcnt_val    oldcnt;
+	intrflags     iflags;
 
 	spinlock_lock_disable_intr(&idmap->lock, &iflags);
-	if ( ( oldcnt == 1 ) && ( idmap->delete_me ) ) {
+	rc = refcnt_put( &idmap->ref_count, &oldcnt );
+	if ( rc == 0 ) {
 
+		kassert( oldcnt == 1 );
 		spinlock_unlock_restore_intr(&idmap->lock, &iflags);
 		rc = free_map_in_idmap(idmap);   /* IDマップを解放 */
 		kassert( rc == 0 );
@@ -380,9 +372,9 @@ error_out:
     @param[in]     idmap IDビットマップ
     @param[in]     idflags 取得するID種別
     @param[in,out] idp   取得したIDの返却先
-    @retval  0      ID取得に成功
-    @retval -ENOENT ID取得に失敗したか, または, 削除中のIDビットマップを獲得しようとした
-    @retval -ENOMEM メモリ不足
+    @retval   0      ID取得に成功
+    @retval  -ENOENT ID取得に失敗したか, または, 削除中のIDビットマップを獲得しようとした
+    @retval  -ENOMEM メモリ不足
  */
 int
 idbmap_get_id(id_bitmap *idmap, int idflags, obj_id *idp) {
@@ -522,10 +514,10 @@ idbmap_destroy(id_bitmap *idmap) {
 	intrflags  iflags;
 
 	spinlock_lock_disable_intr(&idmap->lock, &iflags);
-	idmap->delete_me = true;  /*  削除予約  */
+	refcnt_mark_deleted( &idmap->ref_count );   /*  削除予約  */
 	spinlock_unlock_restore_intr(&idmap->lock, &iflags);
 
-	put_idbmap_ref(idmap);  /*  生成時の参照カウンタを減算する  */
+	put_idbmap_ref(idmap);  /*  init_idbmap_commonで獲得した参照カウンタを解放する  */
 
 	return ;
 }
@@ -551,10 +543,7 @@ idbmap_create(obj_id reserved_ids, id_bitmap **idmapp){
 	/*
 	 * 各メンバを初期化する
 	 */
-	init_idbmap_common(idmap, reserved_ids);
-
-	rc = get_idbmap_ref(idmap);  /*  参照カウンタを上げる  */
-	kassert( rc == 0 );
+	init_idbmap_common(idmap, reserved_ids); /*  参照カウンタを1に設定する  */
 
 	*idmapp = idmap;
 

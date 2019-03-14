@@ -12,12 +12,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include <kern/config.h>
-#include <kern/kernel.h>
-#include <kern/param.h>
-#include <kern/assert.h>
 #include <kern/kern_types.h>
 #include <kern/spinlock.h>
+#include <kern/refcount.h>
 
 #define ID_BITMAP_USER                (0)    /**< ユーザ資源を取得              */
 #define ID_BITMAP_SYSTEM              (1)    /**< システム資源を取得            */
@@ -31,9 +28,7 @@
  */
 typedef struct _id_bitmap{
 	spinlock                     lock;  /**< IDビットマップ排他用ロック  */
-	spinlock                 ref_lock;  /**< 参照カウンタのロック        */
-	bool                    delete_me;  /**< 削除予約中                  */
-	ref_cnt                 ref_count;  /**< 参照カウンタ                */
+	refcnt                  ref_count;  /**< 参照カウンタ                */
 	obj_id               reserved_ids;  /**< システム予約ID数            */
 	obj_id                     nr_ids;  /**< 格納可能ID数                */
 	uint64_t            max_array_idx;  /**< 配列のインデックス数        */
@@ -45,9 +40,7 @@ typedef struct _id_bitmap{
 #define __ID_BITMAP_INITIALIZER(nr_rsv)				\
 	{							\
 	.lock=__SPINLOCK_INITIALIZER,			        \
-	.ref_lock=__SPINLOCK_INITIALIZER,		        \
-	.delete_me = false,                                     \
-	.ref_count = 0,                                         \
+	.ref_count = __REFCNT_INITIALIZER,	                \
 	.reserved_ids = (nr_rsv),		                \
 	.nr_ids = 0,                                            \
 	.max_array_idx = 0,                                     \
