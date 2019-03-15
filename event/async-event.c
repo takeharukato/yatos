@@ -336,7 +336,7 @@ dequeue_from_evque_nolock(event_queue *evque, event_node **nodep) {
 	int               rc;
 	event_mask       tmp;
 	event_mask   deliver;
-	event_id          id;
+	event_no          id;
 
 	kassert( evque != NULL );
 	kassert( nodep != NULL );

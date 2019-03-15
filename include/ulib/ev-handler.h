@@ -22,7 +22,7 @@
 
 /** イベントハンドラの型
  */
-typedef void (*ev_handler)(event_id  , struct _evinfo *, void *);
+typedef void (*ev_handler)(event_no  , struct _evinfo *, void *);
 
 #define EV_HDLR_DFL	((ev_handler)0)	/*< デフォルト動作 */
 #define EV_HDLR_IGN	((ev_handler)1)	/*< 無視 */
@@ -34,6 +34,6 @@ typedef struct _ev_handler_array{
 }ev_handler_array;
 
 void __yatos_user_event_handler_init(void);
-int yatos_register_user_event_handler(event_id _id, ev_handler _handler);
-void __yatos_ulib_invoke_handler(event_id _id, evinfo *_info, event_frame *_evf);
+int yatos_register_user_event_handler(event_no _id, ev_handler _handler);
+void __yatos_ulib_invoke_handler(event_no _id, evinfo *_info, event_frame *_evf);
 #endif  /*  __ULIB_EVENTS_H  */

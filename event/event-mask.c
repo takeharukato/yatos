@@ -57,7 +57,7 @@ event_map_fill_impl(events_map *map) {
     @retval    偽  イベントマップ中の所定のビットがマスクされていない
  */
 static bool
-ev_mask_test_impl(events_map *map, event_id id) {
+ev_mask_test_impl(events_map *map, event_no id) {
 	int          pos;
 	int          idx;
 
@@ -95,7 +95,7 @@ ev_mask_empty_impl(events_map *map) {
     @param[in] id イベントID
  */
 static void 
-ev_mask_set_impl(events_map *map, event_id id) {
+ev_mask_set_impl(events_map *map, event_no id) {
 	int          pos;
 	int          idx;
 
@@ -114,7 +114,7 @@ ev_mask_set_impl(events_map *map, event_id id) {
     @param[in] id イベントID
  */
 static void 
-ev_mask_unset_impl(events_map *map, event_id id) {
+ev_mask_unset_impl(events_map *map, event_no id) {
 	int          pos;
 	int          idx;
 
@@ -160,7 +160,7 @@ ev_mask_fill(event_mask *mask) {
     @retval    偽  イベントマップ中の所定のビットがマスクされていない
  */
 bool
-ev_mask_test(event_mask *mask, event_id id) {
+ev_mask_test(event_mask *mask, event_no id) {
 
 	kassert( mask != NULL );
 	kassert( id < EV_NR_EVENT );
@@ -187,7 +187,7 @@ ev_mask_empty(event_mask *mask) {
     @param[in] id   クリアするイベント
  */
 void
-ev_mask_set(event_mask *mask, event_id id) {
+ev_mask_set(event_mask *mask, event_no id) {
 
 	kassert( mask != NULL );
 	kassert( id < EV_NR_EVENT );
@@ -203,7 +203,7 @@ ev_mask_set(event_mask *mask, event_id id) {
     @param[in] id   クリアするイベント
  */
 void
-ev_mask_unset(event_mask *mask, event_id id) {
+ev_mask_unset(event_mask *mask, event_no id) {
 
 	kassert( mask != NULL );
 	kassert( id < EV_NR_EVENT );
@@ -218,7 +218,7 @@ ev_mask_unset(event_mask *mask, event_id id) {
     @retvak    -ENOENT  ビットマップが空
  */
 int
-ev_mask_find_first_bit(event_mask *mask, event_id *valp) {
+ev_mask_find_first_bit(event_mask *mask, event_no *valp) {
 	int        i,j;
 
 	kassert( mask != NULL );

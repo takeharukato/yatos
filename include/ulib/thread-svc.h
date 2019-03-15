@@ -26,10 +26,10 @@ int yatos_get_event_mask(event_mask *_msk);
 int yatos_set_event_mask(event_mask *msk);
 
 void ev_mask_clr(event_mask *_maskp);
-bool ev_mask_test(event_mask *_mask, event_id _id);
+bool ev_mask_test(event_mask *_mask, event_no _id);
 bool ev_mask_empty(event_mask *mask);
-void ev_mask_set(event_mask *_maskp, event_id _id);
-void ev_mask_unset(event_mask *_maskp, event_id _id);
+void ev_mask_set(event_mask *_maskp, event_no _id);
+void ev_mask_unset(event_mask *_maskp, event_no _id);
 void ev_mask_xor(event_mask *_mask1, event_mask *_mask2, event_mask *_maskp);
 void ev_mask_and(event_mask *_mask1, event_mask *_mask2, event_mask *_maskp);
 void ev_mask_fill(event_mask *_mask);

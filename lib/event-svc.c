@@ -19,7 +19,7 @@
 /**  共通イベントハンドラ
  */
 static void
-common_event_handler(event_id  no, evinfo  *info, event_frame *evf) {
+common_event_handler(event_no  no, evinfo  *info, event_frame *evf) {
 
 	__yatos_ulib_invoke_handler(no, info, evf);
 	yatos_event_return(evf);

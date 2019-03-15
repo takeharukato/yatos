@@ -33,7 +33,7 @@
     @retval    -ENOMEM メモリ不足により割当て失敗
  */
 int
-ev_alloc_node(event_id id, event_node **nodep) {
+ev_alloc_node(event_no id, event_node **nodep) {
 	event_node *node;
 	evinfo     *info;
 

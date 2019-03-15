@@ -63,7 +63,7 @@ new_thread(void *arg) {
 }
 
 void
-user_handler(event_id  id, evinfo *inf, void *ctx) {
+user_handler(event_no  id, evinfo *inf, void *ctx) {
 	
 	/*
 	 * ユーザイベントハンドラデモ

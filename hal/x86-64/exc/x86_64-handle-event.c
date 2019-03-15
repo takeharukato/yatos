@@ -58,7 +58,7 @@ exit_out:
 void
 x86_64_setup_event_handler(trap_context *ctx) {
 	int                  rc;
-	event_id             id;
+	event_no             id;
 	event_node       *newev;
 	event_frame    *user_ef;
 	event_frame          ef;

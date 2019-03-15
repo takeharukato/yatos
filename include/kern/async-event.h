@@ -92,7 +92,7 @@
  */
 typedef struct _evinfo{
 	event_flags        flags;  /*< イベント処理用のフラグ        */
-	event_id              no;  /*< イベント番号                  */
+	event_no              no;  /*< イベント番号                  */
 	event_errno          err;  /*< イベントエラー番号            */
 	event_code          code;  /*< イベントコード                */
 	event_trap          trap;  /*< トラップコード                */
@@ -143,21 +143,21 @@ void ev_get_mask(event_mask *_mask);
 void ev_update_mask(struct _thread *_thr, event_mask *_mask);
 
 void ev_mask_clr(event_mask *_maskp);
-bool ev_mask_test(event_mask *_mask, event_id _id);
+bool ev_mask_test(event_mask *_mask, event_no _id);
 bool ev_mask_empty(event_mask *mask);
-void ev_mask_set(event_mask *_maskp, event_id _id);
-void ev_mask_unset(event_mask *_maskp, event_id _id);
+void ev_mask_set(event_mask *_maskp, event_no _id);
+void ev_mask_unset(event_mask *_maskp, event_no _id);
 void ev_mask_xor(event_mask *_mask1, event_mask *_mask2, event_mask *_maskp);
 void ev_mask_and(event_mask *_mask1, event_mask *_mask2, event_mask *_maskp);
 void ev_mask_fill(event_mask *_mask);
-int  ev_mask_find_first_bit(event_mask *_mask, event_id *_valp);
+int  ev_mask_find_first_bit(event_mask *_mask, event_no *_valp);
 
 int  ev_send(tid _dest, event_node *_node);
 void ev_send_to_process(struct _proc *_p, event_node *_node);
 int  ev_send_to_all_threads_in_process(struct _proc *_p, event_node *_node);
 int  ev_dequeue(event_node **_nodep);
 bool ev_has_pending_events(struct _thread *_thr);
-int  ev_alloc_node(event_id id, event_node **nodep);
+int  ev_alloc_node(event_no id, event_node **nodep);
 void ev_handle_exit_thread_events(void);
 
 int  kcom_handle_system_event(event_node *_node);

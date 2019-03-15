@@ -26,7 +26,7 @@ static ev_handler_array default_hdlrs;  /*  デフォルトハンドラ  */
     @param[in] evf   イベントフレーム
  */
 static void
-ev_core_dump_handler(event_id id, evinfo __attribute__ ((unused)) *info,
+ev_core_dump_handler(event_no id, evinfo __attribute__ ((unused)) *info,
     void __attribute__ ((unused)) *evf) {
 	
 	yatos_thread_exit(id);
@@ -39,7 +39,7 @@ ev_core_dump_handler(event_id id, evinfo __attribute__ ((unused)) *info,
     @param[in] evf   イベントフレーム
  */
 static void
-ev_term_handler(event_id id, evinfo __attribute__ ((unused)) *info, 
+ev_term_handler(event_no id, evinfo __attribute__ ((unused)) *info, 
     void __attribute__ ((unused)) *evf) {
 
 	yatos_thread_exit(id);
@@ -52,7 +52,7 @@ ev_term_handler(event_id id, evinfo __attribute__ ((unused)) *info,
     @param[in] evf   イベントフレーム
  */
 static void
-ev_ignore_handler(event_id __attribute__ ((unused)) id, 
+ev_ignore_handler(event_no __attribute__ ((unused)) id, 
     struct _evinfo __attribute__ ((unused)) *info, 
     void __attribute__ ((unused)) *evf) {
 
@@ -87,7 +87,7 @@ setup_default_handlers(void) {
     @param[in] evf   イベントフレーム
  */
 void
-__yatos_ulib_invoke_handler(event_id id, evinfo *info, event_frame *evf) {
+__yatos_ulib_invoke_handler(event_no id, evinfo *info, event_frame *evf) {
 	ev_handler handler;
 
 	if ( ( is_ev_non_catchable_event(id) ) || ( id >= EV_NR_EVENT ) )
@@ -105,7 +105,7 @@ __yatos_ulib_invoke_handler(event_id id, evinfo *info, event_frame *evf) {
     @retval   -1       イベントIDが範囲外を指定している/捕捉不可能なイベントを指定している
  */
 int
-yatos_register_user_event_handler(event_id id, ev_handler handler){
+yatos_register_user_event_handler(event_no id, ev_handler handler){
 
 	if ( is_ev_non_catchable_event(id) ) {
 

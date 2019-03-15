@@ -33,7 +33,7 @@ typedef enum _proc_serv_sendev_type{
 typedef struct _proc_sys_send_event{
 	tid                   dest;
 	proc_serv_sendev_type type;
-	event_id                id;
+	event_no                id;
 	event_data            data;
 }proc_sys_send_event;
 

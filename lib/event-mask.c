@@ -52,7 +52,7 @@ event_map_fill_impl(events_map *map) {
     @retval    偽  イベントマップ中の所定のビットがマスクされていない
  */
 static bool
-ev_mask_test_impl(events_map *map, event_id id) {
+ev_mask_test_impl(events_map *map, event_no id) {
 	int          pos;
 	int          idx;
 
@@ -85,7 +85,7 @@ ev_mask_empty_impl(events_map *map) {
     @param[in] id イベントID
  */
 static void 
-ev_mask_set_impl(events_map *map, event_id id) {
+ev_mask_set_impl(events_map *map, event_no id) {
 	int          pos;
 	int          idx;
 
@@ -100,7 +100,7 @@ ev_mask_set_impl(events_map *map, event_id id) {
     @param[in] id イベントID
  */
 static void 
-ev_mask_unset_impl(events_map *map, event_id id) {
+ev_mask_unset_impl(events_map *map, event_no id) {
 	int          pos;
 	int          idx;
 
@@ -138,7 +138,7 @@ ev_mask_fill(event_mask *mask) {
     @retval    偽  イベントマップ中の所定のビットがマスクされていない
  */
 bool
-ev_mask_test(event_mask *mask, event_id id) {
+ev_mask_test(event_mask *mask, event_no id) {
 
 	return ev_mask_test_impl(&mask->map[0], id);
 }
@@ -160,7 +160,7 @@ ev_mask_empty(event_mask *mask) {
     @param[in] id   クリアするイベント
  */
 void
-ev_mask_set(event_mask *mask, event_id id) {
+ev_mask_set(event_mask *mask, event_no id) {
 
 	if ( id == EV_SIG_KILL)
 		return;  /* マスク不可能イベント  */
@@ -173,7 +173,7 @@ ev_mask_set(event_mask *mask, event_id id) {
     @param[in] id   クリアするイベント
  */
 void
-ev_mask_unset(event_mask *mask, event_id id) {
+ev_mask_unset(event_mask *mask, event_no id) {
 
 	ev_mask_unset_impl(&mask->map[0], id);
 }

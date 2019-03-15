@@ -36,7 +36,7 @@ __yatos_user_thread_launcher(int (*uthr_start)(void *), void *arg,
     @param[in] data イベントの付帯情報
  */
 int
-yatos_proc_send_event(tid dest, event_id  id, event_data data) {
+yatos_proc_send_event(tid dest, event_no  id, event_data data) {
 	int                      rc;
 	msg_body                msg;
 	proc_service          *pmsg;
@@ -75,7 +75,7 @@ yatos_proc_send_event(tid dest, event_id  id, event_data data) {
     @param[in] data イベントの付帯情報
  */
 int
-yatos_proc_send_proc_event(tid dest, event_id  id, event_data data) {
+yatos_proc_send_proc_event(tid dest, event_no  id, event_data data) {
 	int                      rc;
 	msg_body                msg;
 	proc_service          *pmsg;
@@ -115,7 +115,7 @@ yatos_proc_send_proc_event(tid dest, event_id  id, event_data data) {
     @param[in] data イベントの付帯情報
  */
 int
-yatos_proc_bcast_proc_event(tid dest, event_id  id, event_data data) {
+yatos_proc_bcast_proc_event(tid dest, event_no  id, event_data data) {
 	int                      rc;
 	msg_body                msg;
 	proc_service          *pmsg;

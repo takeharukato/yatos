@@ -53,7 +53,7 @@ typedef tid               endpoint;  /**< LPCの端点(pid/tid)                 
 typedef uint64_t             ticks;  /**< 電源投入時からのティック発生回数            */
 typedef uint64_t         delay_cnt;  /**< ミリ秒以下のループ待ち指定値                */
 typedef uint64_t        events_map;  /**< 非同期イベントのビットマップ                */
-typedef obj_cnt_type      event_id;  /**< 非同期イベントID                            */
+typedef obj_cnt_type      event_no;  /**< 非同期イベント番号                          */
 typedef uint32_t       event_flags;  /**< カーネル内でのイベント処理フラグ            */
 typedef int            event_errno;  /**< 非同期イベントエラー番号                    */
 typedef int             event_code;  /**< 非同期イベントコード番号                    */
