@@ -59,7 +59,7 @@ _refer_boot_info(void) {
 /** 高位メモリページ(3GiBより大きなアドレス)を登録する
     @param[in] info ブート時情報
  */
-void
+static void
 x86_64_add_high_pages(karch_info  *info) {
 	int            i;
 	memory_area  *ma;
@@ -81,7 +81,7 @@ x86_64_add_high_pages(karch_info  *info) {
 /** メモリページ/ストレートマップ領域の初期化
     @param[in] info ブート時情報
  */
-void 
+static void 
 page_init(karch_info  *info) {
 	obj_cnt_type nr_free_pages;
 	obj_cnt_type      nr_pages;
