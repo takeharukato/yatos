@@ -27,41 +27,41 @@
 
 //#define DEBUG_BOOT_ACPI
 
-static struct acpi_rdsp *
-scan_rdsp(uintptr_t base, size_t len) {
+static struct acpi_rsdp *
+scan_rsdp(uintptr_t base, size_t len) {
 	uint8_t          *p;
 	unsigned int sum, n;
 
-	for (p = (uint8_t *)PHY_TO_KERN_STRAIGHT(base); len >= sizeof(struct acpi_rdsp); len -= 4, p += 4) {
+	for (p = (uint8_t *)PHY_TO_KERN_STRAIGHT(base); len >= sizeof(struct acpi_rsdp); len -= 4, p += 4) {
 
-		if (memcmp(p, SIG_RDSP, 8) == 0) {
+		if (memcmp(p, SIG_RSDP, 8) == 0) {
 
 			for (sum = 0, n = 0; n < 20; n++)
 				sum += p[n];
 			if ((sum & 0xff) == 0)
-				return (struct acpi_rdsp *) p;
+				return (struct acpi_rsdp *) p;
 		}
 	}
 
-	return (struct acpi_rdsp *) 0;  
+	return (struct acpi_rsdp *) 0;  
 }
 
-static struct acpi_rdsp *
-find_rdsp(void) {
-	struct acpi_rdsp *rdsp;
+static struct acpi_rsdp *
+find_rsdp(void) {
+	struct acpi_rsdp *rsdp;
 	uintptr_t           pa;
 
 	pa = *((uint16_t *) PHY_TO_KERN_STRAIGHT((0x40E))) << 4; // EBDA
-	if (pa && (rdsp = scan_rdsp(pa, 1024)))
-		return rdsp;
+	if (pa && (rsdp = scan_rsdp(pa, 1024)))
+		return rsdp;
 
-	return scan_rdsp(0xE0000, 0x20000);
+	return scan_rsdp(0xE0000, 0x20000);
 } 
 
 int
 x86_64_boot_acpiinit(karch_info *info) {
 	unsigned int                               n, count;
-	struct acpi_rdsp                              *rdsp;
+	struct acpi_rsdp                              *rsdp;
 	struct acpi_rsdt                              *rsdt;
 	struct acpi_madt                              *madt;
 	struct acpi_desc_header                        *hdr;
@@ -71,9 +71,9 @@ x86_64_boot_acpiinit(karch_info *info) {
 
 
 	madt = NULL;
-	rdsp = find_rdsp();
+	rsdp = find_rsdp();
 
-	rsdt = (struct acpi_rsdt *)PHY_TO_KERN_STRAIGHT(rdsp->rsdt_addr_phys);
+	rsdt = (struct acpi_rsdt *)PHY_TO_KERN_STRAIGHT(rsdp->rsdt_addr_phys);
 	count = (rsdt->header.length - sizeof(*rsdt)) / 4;
 	for (n = 0; n < count; n++) {
 
@@ -101,13 +101,13 @@ x86_64_boot_acpiinit(karch_info *info) {
 	return -1;
 
 success_out:
-	info->rdsp = rdsp;
+	info->rsdp = rsdp;
 	info->rsdt = rsdt;
 	info->madt = madt;
 
 #if defined(DEBUG_BOOT_ACPI)
-	kprintf(KERN_INF, "boot-acpi: found rdsp: %p rsdt: %p madt: %p\n", 
-		info->rdsp, info->rsdt, info->madt);
+	kprintf(KERN_INF, "boot-acpi: found rsdp: %p rsdt: %p madt: %p\n", 
+		info->rsdp, info->rsdt, info->madt);
 #endif  /*  DEBUG_BOOT_ACPI  */
 
 	return 0;

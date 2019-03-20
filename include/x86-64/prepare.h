@@ -61,7 +61,7 @@ typedef struct _karch_info{
 	uintptr_t                boot_kpgtbl_start_phy;
 	void                                   *kpgtbl;
 	void                              *boot_kpgtbl;
-	struct acpi_rdsp                         *rdsp;
+	struct acpi_rsdp                         *rsdp;
 	struct acpi_rsdt                         *rsdt;
 	struct acpi_madt                         *madt;
 }karch_info;

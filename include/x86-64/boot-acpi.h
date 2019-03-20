@@ -17,7 +17,7 @@
 #include <kern/kernel.h>
 #include <kern/param.h>
 
-#define SIG_RDSP "RSD PTR "
+#define SIG_RSDP "RSD PTR "
 #define SIG_MADT "APIC"
 
 #define BOOT_ACPI_TYPE_LAPIC            (0)
@@ -28,7 +28,7 @@
 
 #define BOOT_ACPI_APIC_LAPIC_ENABLED    (1)
 
-struct acpi_rdsp {
+struct acpi_rsdp {
 	uint8_t signature[8];
 	uint8_t checksum;
 	uint8_t oem_id[6];
