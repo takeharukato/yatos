@@ -41,7 +41,20 @@ typedef enum _sync_reason{
 	SYNC_WAI_DELIVEV = 4,    /*<  イベント受信                   */
 }sync_reason;
 
+/** コールバック呼び出し要因
+ */
+typedef enum _sync_callback_reason{
+	SYNC_WAIT_CALL_WAIT = 0,  /*<  休眠前(ロック解除)          */
+	SYNC_WAIT_CALL_WAKE = 1,   /*<  起床後(ロック獲得)          */
+}sync_callback_reason;
+
 struct _thread;
+
+typedef void * sync_callback_arg; /*< コールバック引数 */
+/** コールバック関数
+ */
+typedef void (*sync_callback)(enum _sync_callback_reason _reason, sync_callback_arg _arg);
+
 /** 同期ブロック
  */
 typedef struct _sync_block{
@@ -67,6 +80,9 @@ typedef struct _sync_obj{
 	.que = __QUEUE_INITIALIZER(&(_sobj.que)),	        \
 	}
 
+void sync_spinlocked_callback(sync_callback_reason _reason, void *_arg);
+sync_reason sync_wait_with_callback(sync_obj *_obj, sync_callback _callback,
+				    sync_callback_arg _arg);
 void sync_init_object(sync_obj *_obj, sync_pol _pol, thr_state _wait_kind);
 sync_reason sync_wait(sync_obj *_obj, spinlock *_lock);
 void sync_wake(sync_obj *_obj, sync_reason _reason);
