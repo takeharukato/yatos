@@ -260,6 +260,38 @@ tim_wait(tim_tmout outms) {
 	return res;
 }
 
+/** コールバックを呼び出して排他処理を行いながら同期オブジェクトをタイムアウト付きで待ち合わせる
+    @param[in] obj      同期オブジェクト
+    @param[in] lock     同期オブジェクトに紐付けられたロック
+    @param[in] callback コールバック関数
+    @param[in] arg      コールバック引数
+    @retval SYNC_WAI_RELEASED  待ち要因が解消された 
+    @retval SYNC_OBJ_DESTROYED オブジェクトが破棄された
+*/
+sync_reason
+tim_wait_with_callback(sync_obj *obj, tim_tmout outms, 
+		       sync_callback callback, sync_callback_arg arg){
+	sync_obj   timer_obj;
+	sync_block timer_sb;
+	sync_block obj_sb;
+	timer_callout cb;
+
+	kassert(obj != NULL);
+
+	wait_time_obj_no_schedule(obj, &timer_obj, &obj_sb, &timer_sb, &cb, outms );
+
+	if ( thr_in_wait(current) ) {
+
+		if ( callback != NULL )
+			callback(SYNC_WAIT_CALL_WAIT, arg);
+		sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
+		if ( callback != NULL )
+			callback(SYNC_WAIT_CALL_WAKE, arg);
+	}
+
+	return finish_wait_time_obj(obj, &timer_obj, &obj_sb, &timer_sb, &cb);
+}
+
 /** 同期オブジェクトをタイムアウト付きで待ち合わせる
     @param[in] obj   同期オブジェクト
     @param[in] outms タイムアウト時間(単位:ms)
@@ -270,24 +302,10 @@ tim_wait(tim_tmout outms) {
 */
 sync_reason
 tim_wait_obj(sync_obj *obj, tim_tmout outms, spinlock *lock) {
-	sync_obj   timer_obj;
-	sync_block timer_sb;
-	sync_block obj_sb;
-	timer_callout cb;
 
-	kassert(obj != NULL);
 	kassert( spinlock_locked_by_self(lock) );
 
-	wait_time_obj_no_schedule(obj, &timer_obj, &obj_sb, &timer_sb, &cb, outms );
-
-	if ( thr_in_wait(current) ) {
-
-		spinlock_unlock(lock);
-		sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
-		spinlock_lock(lock);
-	}
-
-	return finish_wait_time_obj(obj, &timer_obj, &obj_sb, &timer_sb, &cb);
+	return tim_wait_with_callback(obj, outms, sync_spinlocked_callback, lock); 
 }
 
 /** マイクロ秒待ちビジーループ

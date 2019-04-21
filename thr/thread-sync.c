@@ -78,6 +78,22 @@ finish_wait(sync_obj *obj, sync_block *blk) {
 	return res;
 }
 
+/** 休眠処理時のスピンロックの獲得開放を行うためのコールバック
+    @param[in] reason コールバック呼び出し要因
+    @param[in] arg    コールバック引数 (スピンロックのアドレス)
+ */
+void
+sync_spinlocked_callback(sync_callback_reason reason, void *arg){
+	spinlock *sl;
+
+	sl = (spinlock *)arg;
+	if ( reason == SYNC_WAIT_CALL_WAIT )
+		spinlock_unlock(sl);
+	else if ( reason == SYNC_WAIT_CALL_WAKE )
+		spinlock_lock(sl);
+}
+
+
 /** 同期ブロックを初期化し, 自スレッドを待ちスレッドに設定する
     @param[in] blk 初期化対象の同期ブロック
 */
@@ -108,6 +124,38 @@ sync_init_object(sync_obj *obj, sync_pol pol, thr_state wait_kind) {
 	queue_init( &obj->que );
 }
 
+/** コールバックを呼び出して排他処理を行いながら同期オブジェクトを待ち合わせる
+    @param[in] obj      同期オブジェクト
+    @param[in] lock     同期オブジェクトに紐付けられたロック
+    @param[in] callback コールバック関数
+    @param[in] arg      コールバック引数
+    @retval SYNC_WAI_RELEASED  待ち要因が解消された 
+    @retval SYNC_OBJ_DESTROYED オブジェクトが破棄された
+*/
+sync_reason 
+sync_wait_with_callback(sync_obj *obj, sync_callback callback, sync_callback_arg arg){
+	sync_block blk;
+	sync_reason rc;
+
+	kassert( obj != NULL );
+	kassert( valid_wait_status( obj->wait_kind ) );
+
+	wait_sync_obj_no_schedule(obj, &blk);
+	if ( thr_in_wait(current) ) {
+
+		if ( callback != NULL )
+			callback(SYNC_WAIT_CALL_WAIT, arg);
+
+		sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
+		if ( callback != NULL )
+			callback(SYNC_WAIT_CALL_WAKE, arg);
+	}
+
+	rc = finish_wait(obj, &blk);
+
+	return rc;  /*  起床要因を返却  */
+}
+
 /** 同期オブジェクトを待ち合わせる
     @param[in] obj  同期オブジェクト
     @param[in] lock 同期オブジェクトに紐付けられたロック
@@ -116,24 +164,10 @@ sync_init_object(sync_obj *obj, sync_pol pol, thr_state wait_kind) {
 */
 sync_reason
 sync_wait(sync_obj *obj, spinlock *lock){
-	sync_block blk;
-	sync_reason rc;
 
-	kassert( obj != NULL );
-	kassert( valid_wait_status( obj->wait_kind ) );
 	kassert( spinlock_locked_by_self(lock) );
 
-	wait_sync_obj_no_schedule(obj, &blk);
-	if ( thr_in_wait(current) ) {
-
-		spinlock_unlock(lock);
-		sched_schedule();  /*  CPUを解放, 再スケジュールを実施  */
-		spinlock_lock(lock);
-	}
-
-	rc = finish_wait(obj, &blk);
-
-	return rc;  /*  起床要因を返却  */
+	return sync_wait_with_callback(obj, sync_spinlocked_callback, lock); 
 }
 
 /** 同期オブジェクトを待ち合わせているスレッドを起こす

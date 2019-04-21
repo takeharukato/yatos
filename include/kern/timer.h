@@ -57,6 +57,8 @@ void tim_init_subsys(void);
 
 sync_reason tim_wait(tim_tmout _outms);
 sync_reason tim_wait_obj(sync_obj *_obj, tim_tmout _outms, spinlock *_lock);
+sync_reason tim_wait_with_callback(sync_obj *_obj, tim_tmout _outms, 
+				   sync_callback _callback, sync_callback_arg _arg);
 void mdelay(delay_cnt _ms);
 void udelay(delay_cnt _us);
 
