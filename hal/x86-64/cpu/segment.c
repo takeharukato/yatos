@@ -75,9 +75,12 @@ load_global_segment(void *p, size_t size) {
 }
 
 static void
-init_tss_descriptor(gdt_descriptor *gdt_ent, uintptr_t addr, uintptr_t limit) {
+init_tss_descriptor(gdt_descriptor *gdt_ent, uintptr_t addr, uintptr_t page_end, 
+    uintptr_t limit) {
 	gdt_descriptor *gdtp;
-	uint64_t *high_addr;
+	uint64_t  *high_addr;
+	tss64           *tss;
+	uint16_t    *iomap_p;
 
 	gdtp = gdt_ent;
 
@@ -105,6 +108,26 @@ init_tss_descriptor(gdt_descriptor *gdt_ent, uintptr_t addr, uintptr_t limit) {
 	high_addr = (uint64_t *)( gdt_ent + 1 );
 	*high_addr = ( (addr >> 32) & 0xffffffff );
 
+	/*
+	 * TSSの初期化, 初期化対象はI/O bitmapのみ
+	 */
+	tss = (tss64 *)addr;
+
+#if defined(SHOW_IOMAP_INIT)
+	kprintf(KERN_CRI,
+	    "TSS: start %p end %p iomap:%p\n", tss, (void *)page_end, &tss->iomap);
+#endif  /*  SHOW_IOMAP_INIT  */
+
+	for(iomap_p = &tss->iomap; (void *)page_end > (void *)iomap_p; ++iomap_p) {
+
+#if defined(SHOW_IOMAP_INIT)
+		kprintf(KERN_DBG,
+		    "TSS: iomap:[%d]=0xffff\n",
+		    ((uintptr_t)iomap_p - (uintptr_t)&tss->iomap)/sizeof(uint16_t),
+		    iomap_p);
+#endif  /*  SHOW_IOMAP_INIT  */
+		*iomap_p = ~((uint16_t)(0));
+	}
 	return;
 }
 
@@ -160,7 +183,6 @@ init_segments(void *gdtp, tss64 **tssp){
 	gdt = (uint64_t *)gdtp;
 	
 	addr = (uint64_t)( gdtp + X86_64_SEGMENT_CPUINFO_OFFSET );
-	((tss64 *)addr)->iomap = sizeof(tss64);
 
 	gdt[GDT_NULL1_SEL] = (uint64_t)0;
 	gdt[GDT_NULL2_SEL] = (uint64_t)0;
@@ -189,7 +211,8 @@ init_segments(void *gdtp, tss64 **tssp){
 	    0, 0xffffffff, X86_DESC_RDWR, X86_DESC_NONEXEC, X86_DESC_DPL_USER, 
 	    X86_DESC_64BIT_MODE, X86_DESC_64BIT_SEG, X86_DESC_PAGE_SIZE);
 
-	init_tss_descriptor((gdt_descriptor *)&gdt[GDT_TSS64_SEL], addr, sizeof(tss64) - 1);
+	init_tss_descriptor((gdt_descriptor *)&gdt[GDT_TSS64_SEL], addr, 
+	    (uintptr_t )(gdtp + PAGE_SIZE), sizeof(tss64) - 1);
 	
 	load_global_segment( (void *)gdt, (GDT_TSS64_SEL + 2) * sizeof(uint64_t));
 
