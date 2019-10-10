@@ -23,6 +23,7 @@
 #include <hal/segment.h>
 #include <hal/traps.h>
 
+//#define SHOW_IOMAP_INIT
 //#define DEBUG_SHOW_GLOBAL_DESCRIPTOR
 
 #if defined(DEBUG_SHOW_GLOBAL_DESCRIPTOR)
@@ -81,6 +82,7 @@ init_tss_descriptor(gdt_descriptor *gdt_ent, uintptr_t addr, uintptr_t page_end,
 	uint64_t  *high_addr;
 	tss64           *tss;
 	uint16_t    *iomap_p;
+	unsigned int       i;
 
 	gdtp = gdt_ent;
 
@@ -108,8 +110,12 @@ init_tss_descriptor(gdt_descriptor *gdt_ent, uintptr_t addr, uintptr_t page_end,
 	high_addr = (uint64_t *)( gdt_ent + 1 );
 	*high_addr = ( (addr >> 32) & 0xffffffff );
 
-	/*
-	 * TSSの初期化, 初期化対象はI/O bitmapのみ
+	/* TSSの初期化, 初期化対象はI/O bitmapのみ
+	 * I/O ポート命令の引数は16ビットなので最大65536ポート使用可能
+	 * 65536ポート分の16ビットチャンクビットマップが必要.
+	 * 65536ポート / 8bit(バイトあたりのビット数) = 8192バイト = 2ページ
+	 * buddy poolが2の冪乗でページを割り当てることから, TSSページにはgdtを含めて
+	 * 4ページを割り当てている
 	 */
 	tss = (tss64 *)addr;
 
@@ -118,11 +124,13 @@ init_tss_descriptor(gdt_descriptor *gdt_ent, uintptr_t addr, uintptr_t page_end,
 	    "TSS: start %p end %p iomap:%p\n", tss, (void *)page_end, &tss->iomap);
 #endif  /*  SHOW_IOMAP_INIT  */
 
-	for(iomap_p = &tss->iomap; (void *)page_end > (void *)iomap_p; ++iomap_p) {
+	for(iomap_p = &tss->iomap, i = 0; 
+	    ( (void *)page_end > (void *)iomap_p) && ( (1UL<<16)/(sizeof(uint16_t)*8) ) > i;
+	    ++iomap_p, ++i) {
 
 #if defined(SHOW_IOMAP_INIT)
 		kprintf(KERN_DBG,
-		    "TSS: iomap:[%d]=0xffff\n",
+		    "TSS: iomap: %p [%d]=0xffff\n", iomap_p,
 		    ((uintptr_t)iomap_p - (uintptr_t)&tss->iomap)/sizeof(uint16_t),
 		    iomap_p);
 #endif  /*  SHOW_IOMAP_INIT  */
@@ -179,7 +187,7 @@ init_segments(void *gdtp, tss64 **tssp){
 	uint64_t                *gdt;
 	uint64_t                addr;
 
-	memset(gdtp, 0, sizeof(PAGE_SIZE));
+	memset(gdtp, 0, sizeof(PAGE_SIZE<<X86_64_SEGMENT_CPUINFO_PAGE_ORDER));
 	gdt = (uint64_t *)gdtp;
 	
 	addr = (uint64_t)( gdtp + X86_64_SEGMENT_CPUINFO_OFFSET );
@@ -212,7 +220,7 @@ init_segments(void *gdtp, tss64 **tssp){
 	    X86_DESC_64BIT_MODE, X86_DESC_64BIT_SEG, X86_DESC_PAGE_SIZE);
 
 	init_tss_descriptor((gdt_descriptor *)&gdt[GDT_TSS64_SEL], addr, 
-	    (uintptr_t )(gdtp + PAGE_SIZE), sizeof(tss64) - 1);
+	    (uintptr_t )(gdtp + (PAGE_SIZE<<X86_64_SEGMENT_CPUINFO_PAGE_ORDER)), sizeof(tss64) - 1);
 	
 	load_global_segment( (void *)gdt, (GDT_TSS64_SEL + 2) * sizeof(uint64_t));
 

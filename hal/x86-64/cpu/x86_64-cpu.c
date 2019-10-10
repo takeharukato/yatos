@@ -42,7 +42,8 @@ setup_current_gdt_tss(void) {
 	kassert( current_cpu() < NR_CPUS );
 	ac = &acpus[current_cpu()];
 
-	get_free_page(&gdtp);
+	alloc_buddy_pages(&gdtp, X86_64_SEGMENT_CPUINFO_PAGE_ORDER, 
+	    KMALLOC_NORMAL);  /*  4ページ獲得 */
 	kassert(gdtp != NULL);
 
 	init_segments(gdtp, (tss64 **)&tssp);

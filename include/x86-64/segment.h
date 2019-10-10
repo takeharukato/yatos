@@ -66,7 +66,7 @@
 #define X86_DESC_PAGE_SIZE                            (1)
 
 #define X86_64_SEGMENT_CPUINFO_OFFSET                 (1024)
-
+#define X86_64_SEGMENT_CPUINFO_PAGE_ORDER             (2)
 typedef struct _region_descriptor {
 	uint16_t rd_limit:16;           /* segment extent */
 	uint64_t rd_base:64 __attribute__((packed));   /* base address  */
