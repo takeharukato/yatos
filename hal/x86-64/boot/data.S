@@ -30,16 +30,16 @@
 boot_entry_addr:
 	.quad x86_64_prepare
 
-.align 0x10
+.balign 16
 idt:
 	#.fill 256, 0x10, 0x0  idt_t = 16(0x10)byte x 256 entries
-	.fill 512, 0x8,	0x0
+	.fill 256, 0x10, 0x0
 idt_ptr:
 	.word	(. - idt - 1)
 	.quad	idt
 
 
-.p2align 3
+.balign 8
 pre_gdt:
 	GDT_NULL_ENTRY
 	GDT_NULL_ENTRY
@@ -56,19 +56,19 @@ pre_gdt_p:
 	.quad	pre_gdt
 
 
-.p2align 12
+.balign PAGE_SIZE
 pre_pml4:
     .zero   PAGE_SIZE
-.p2align 12
+.balign PAGE_SIZE
 pre_pdpt_low:
     .zero   PAGE_SIZE
-.p2align 12
+.balign PAGE_SIZE
 pre_pdpt_high:
     .zero   PAGE_SIZE
-.p2align 12
+.balign PAGE_SIZE
 pre_pd:
     .zero   PAGE_SIZE
-.p2align 12
+.balign PAGE_SIZE
 gdt:
     .zero   PAGE_SIZE
 

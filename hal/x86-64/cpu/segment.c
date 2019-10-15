@@ -157,7 +157,7 @@ init_gdt_descriptor_table_entry(gdt_descriptor *gdtp, uintptr_t addr, uintptr_t 
 	gdtp->rw = rw;
 	gdtp->dc = 0;
 
-		gdtp->mode = mode;
+	gdtp->mode = mode;
 	if (exec) {
 
 		gdtp->exec = 1;
