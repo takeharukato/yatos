@@ -42,11 +42,11 @@
 #define GDT_DS		         0x3
 
 #define SET_GDT_ENTRY(arch, mode, type, base, limit)	\
-	.word   (((limit) >> 12) & 0xffff);             \
+	.word   ((limit) & 0xffff);             \
 	.word   ((base) & 0xffff);                      \
 	.byte   (((base) >> 16) & 0xff);                \
 	.byte   ((mode) | (type));			\
-	.byte   ((arch) | (((limit) >> 28) & 0xf));     \
+	.byte   ((arch) | (((limit) >> 16) & 0xf));     \
 	.byte   (((base) >> 24) & 0xff)
 #else
 
