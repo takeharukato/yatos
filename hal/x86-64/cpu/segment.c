@@ -106,7 +106,11 @@ init_tss_descriptor(gdt_descriptor *gdt_ent, uintptr_t addr, uintptr_t page_end,
 	gdtp->mode = 0;
 	gdtp->size = 0;
 	gdtp->gran = 0;
-	
+
+	/*
+	 * 64bitTSSセグメントGDTの場合は, 32bit GDTの直後に32bitの
+	 * 上位32bitベースアドレスが入る
+	 */
 	high_addr = (uint64_t *)( gdt_ent + 1 );
 	*high_addr = ( (addr >> 32) & 0xffffffff );
 
